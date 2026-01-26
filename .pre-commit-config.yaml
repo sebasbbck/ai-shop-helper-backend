@@ -1,0 +1,39 @@
+repos:
+-   repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+    -   id: pretty-format-json
+        args:
+        -   --autofix
+    -   id: trailing-whitespace
+    -   id: end-of-file-fixer
+    -   id: check-added-large-files
+    -   id: check-json
+    -   id: check-toml
+    -   id: check-yaml
+    -   id: no-commit-to-branch
+-   repo: https://github.com/asottile/pyupgrade
+    rev: v3.20.0
+    hooks:
+    -   id: pyupgrade
+        args:
+        -   --py313-plus
+-   repo: local
+    hooks:
+    -   id: ruff-formatter
+        name: linter
+        entry: ruff format
+        language: system
+        types: [python]
+    -   id: ruff-checker
+        name: formatter
+        entry: ruff check --fix
+        language: system
+        types: [python]
+    -   id: ty
+        name: typing-checker
+        entry: ty check
+        language: system
+        types: [python]
+        require_serial: true
+        exclude: ^tests/
