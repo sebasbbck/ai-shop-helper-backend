@@ -34,4 +34,4 @@ WORKDIR /app
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["fastapi", "run", "src/ai_shop_helper_backend/main.py", "--port", "80"]
+CMD ["fastapi", "run", "src/ai_shop_helper_backend/main.py", "--port", "8080"]
