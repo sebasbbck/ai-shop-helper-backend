@@ -1,4 +1,4 @@
-# ai-shop-helper-backend
+# AI Shop Helper Backend
 
 Backend for AI Shop Helper application.
 
