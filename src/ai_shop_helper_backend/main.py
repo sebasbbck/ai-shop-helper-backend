@@ -36,3 +36,31 @@ def health_db() -> dict[str, str]:
         return {"status": "ok"}
     except:
         return {"status": "failed"}
+
+
+def _n8n_endpoint(path: str) -> dict[str, str]:
+    import os
+    import httpx
+
+    try:
+        n8n_url = os.getenv("N8N_URL")
+        response = httpx.get(f"{n8n_url}{path}", timeout=5.0)
+        response.raise_for_status()
+        return {"status": "ok"}
+    except:
+        return {"status": "failed"}
+
+
+@app.get("/health/n8n")
+def health_n8n() -> dict[str, str]:
+    return _n8n_endpoint("/healthz")
+
+
+@app.get("/health/n8n/db")
+def health_n8n_db() -> dict[str, str]:
+    return _n8n_endpoint("/healthz/readiness")
+
+
+@app.get("/health/n8n/webhook")
+def health_n8n_webhook() -> dict[str, str]:
+    return _n8n_endpoint("/webhook/health")
