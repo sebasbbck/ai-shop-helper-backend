@@ -40,7 +40,10 @@ async def get_current_user(
     user_id = decode_access_token(token)
     if not user_id:
         raise credentials_exception
-    user = await users.get_user_by_id(session, UUID(user_id))
+    try:
+        user = await users.get_user_by_id(session, UUID(user_id))
+    except ValueError:
+        raise credentials_exception
     if not user:
         raise credentials_exception
     if not user.is_active:

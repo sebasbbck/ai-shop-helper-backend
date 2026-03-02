@@ -10,6 +10,7 @@ requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.4",
     "fastapi[standard]>=0.128.0",
+    "httpx>=0.28.1",
     "psycopg[binary]>=3.3.3",
     "pwdlib[argon2]>=0.3.0",
     "pyjwt>=2.11.0",
@@ -24,7 +25,6 @@ build-backend = "uv_build"
 dev = [
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
-    "pytest-async>=0.1.1",
     "pytest-cov>=7.0.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.10",
@@ -40,10 +40,10 @@ extend-select = ["I", "ANN", "UP"]
 [tool.pytest]
 addopts = ["-raq", "--cov=src", "--cov-report=term-missing"]
 testpaths = ["tests"]
+anyio_mode = "auto"
 
 [tool.coverage.report]
 exclude_lines = ["pass"]
-
 
 [tool.alembic]
 script_location = "%(here)s/migrations"

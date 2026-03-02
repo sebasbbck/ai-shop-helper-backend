@@ -217,3 +217,7 @@ __marimo__/
 
 # OpenAPI
 openapi.json
+
+# Local AI
+CLAUDE.md
+.claude

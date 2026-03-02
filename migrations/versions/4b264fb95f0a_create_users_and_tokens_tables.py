@@ -50,7 +50,7 @@ def upgrade() -> None:
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index(
-        op.f("ix_refreshtoken_token"), "refreshtoken", ["token"], unique=False
+        op.f("ix_refreshtoken_token"), "refreshtoken", ["token"], unique=True
     )
     op.create_index(
         op.f("ix_refreshtoken_user_id"), "refreshtoken", ["user_id"], unique=False

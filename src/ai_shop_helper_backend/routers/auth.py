@@ -127,7 +127,7 @@ async def logout(
     )
     response.delete_cookie(
         key=settings.REFRESH_TOKEN_COOKIE,
-        path=settings.REFRESH_TOKEN_PATH,
+        path=settings.refresh_token_path,
         httponly=True,
         secure=True,
         samesite="strict",
@@ -163,6 +163,6 @@ async def _issue_tokens(
         httponly=True,
         secure=True,
         samesite="strict",
-        path=settings.REFRESH_TOKEN_PATH,
+        path=settings.refresh_token_path,
     )
     return Token(access_token=security.create_access_token(str(user_id)))

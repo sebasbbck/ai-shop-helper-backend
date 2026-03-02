@@ -70,7 +70,7 @@ async def create_user(session: AsyncSession, user_in: UserCreate) -> User:
     user = User(
         email=user_in.email,
         name=user_in.name,
-        hashed_password=hash_password(user_in.password),
+        hashed_password=hash_password(user_in.password.get_secret_value()),
     )
     session.add(user)
     return user
@@ -112,7 +112,7 @@ async def update_user(
     """
     data = user_in.model_dump(exclude_unset=True)
     if password := data.pop("password", None):
-        data["hashed_password"] = hash_password(password)
+        data["hashed_password"] = hash_password(password.get_secret_value())
     user.sqlmodel_update(data)
     session.add(user)
     return user

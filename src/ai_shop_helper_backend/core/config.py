@@ -15,7 +15,7 @@ class Settings(BaseSettings):
         ACCESS_TOKEN_EXPIRE_MINUTES (int): The expiration time for access tokens in minutes.
         REFRESH_TOKEN_EXPIRE_DAYS (int): The expiration time for refresh tokens in days.
         REFRESH_TOKEN_COOKIE (str): The name of the cookie to store the refresh token.
-        REFRESH_TOKEN_PATH (str): The path for the refresh token endpoint.
+        refresh_token_path (str): The path for the refresh token endpoint.
         DB_HOST (str): The database host.
         DB_PORT (int): The database port.
         DB_USERNAME (str): The database username.
@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # General
     PROJECT_NAME: str = "AI Shop Helper"
-    ENVIRONMENT: Literal["dev", "prod"] = "prod"
+    ENVIRONMENT: Literal["dev", "prod"] = "dev"
     API_V1_STR: str = "/api/v1"
     # Security
     SECRET_KEY: str = Field(default=...)
@@ -40,7 +40,6 @@ class Settings(BaseSettings):
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
     REFRESH_TOKEN_EXPIRE_DAYS: int = 30
     REFRESH_TOKEN_COOKIE: str = "refresh_token"
-    REFRESH_TOKEN_PATH: str = "/api/v1/auth/refresh"
     # Database
     DB_HOST: str = Field(default=...)
     DB_PORT: int = Field(default=...)
@@ -49,6 +48,16 @@ class Settings(BaseSettings):
     DB_NAME: str = Field(default=...)
     # Other
     N8N_URL: str = Field(default=...)
+
+    @computed_field
+    @property
+    def refresh_token_path(self) -> str:
+        """Construct the path for the refresh token endpoint.
+
+        Returns:
+            str: The path for the refresh token endpoint.
+        """
+        return f"{self.API_V1_STR}/auth/refresh"
 
     @computed_field
     @property

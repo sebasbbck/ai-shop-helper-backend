@@ -1,12 +1,28 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from ai_shop_helper_backend.core.config import settings
+from ai_shop_helper_backend.core.db import engine
 from ai_shop_helper_backend.routers import auth, users
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager to handle startup and shutdown events.
+
+    Dispose of the database engine on shutdown to ensure all connections are properly closed.
+    """
+    yield
+    await engine.dispose()
+
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
     root_path=settings.API_V1_STR,
     generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}",
+    lifespan=lifespan,
 )
 app.include_router(auth.router)
 app.include_router(users.router)

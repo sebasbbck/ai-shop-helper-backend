@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, status
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.deps import (
     CurrentSuperUser,
@@ -47,12 +48,8 @@ async def update_me(
     Raises:
         HTTPException: 409 if the email is already registered.
     """
-    if user_in.email and user_in.email != current_user.email:
-        if await users.get_user_by_email(session, user_in.email):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered",
-            )
+    if user_in.email:
+        await _check_email_available(session, user_in.email, current_user.email)
     return UserPublic.model_validate(
         await users.update_user(session, current_user, user_in)
     )
@@ -139,12 +136,8 @@ async def update_user(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
-    if user_in.email and user_in.email != user.email:
-        if await users.get_user_by_email(session, user_in.email):
-            raise HTTPException(
-                status_code=status.HTTP_409_CONFLICT,
-                detail="Email already registered",
-            )
+    if user_in.email:
+        await _check_email_available(session, user_in.email, user.email)
     return UserPublic.model_validate(await users.update_user(session, user, user_in))
 
 
@@ -177,3 +170,13 @@ async def delete_user(
             detail="User not found",
         )
     await users.delete_user(session, user)
+
+
+async def _check_email_available(
+    session: AsyncSession, email: str, current_email: str
+) -> None:
+    if email != current_email and await users.get_user_by_email(session, email):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Email already registered",
+        )

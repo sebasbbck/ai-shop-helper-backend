@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import EmailStr
+from pydantic import EmailStr, Field, SecretStr
 from sqlmodel import SQLModel
 
 
@@ -10,14 +10,7 @@ class UserCreate(SQLModel):
 
     email: EmailStr
     name: str
-    password: str
-
-
-class UserLogin(SQLModel):
-    """Schema for user login credentials."""
-
-    email: EmailStr
-    password: str
+    password: SecretStr = Field(min_length=8, max_length=128)
 
 
 class UserUpdate(SQLModel):
@@ -25,7 +18,7 @@ class UserUpdate(SQLModel):
 
     email: EmailStr | None = None
     name: str | None = None
-    password: str | None = None
+    password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
 
 
 class UserAdminUpdate(SQLModel):
@@ -33,7 +26,7 @@ class UserAdminUpdate(SQLModel):
 
     email: EmailStr | None = None
     name: str | None = None
-    password: str | None = None
+    password: SecretStr | None = Field(default=None, min_length=8, max_length=128)
     is_active: bool | None = None
     is_superuser: bool | None = None
 
