@@ -11,13 +11,7 @@ repos:
     -   id: check-json
     -   id: check-toml
     -   id: check-yaml
-    # -   id: no-commit-to-branch
--   repo: https://github.com/asottile/pyupgrade
-    rev: v3.20.0
-    hooks:
-    -   id: pyupgrade
-        args:
-        -   --py313-plus
+    -   id: no-commit-to-branch
 -   repo: local
     hooks:
     -   id: ruff-formatter

@@ -16,41 +16,45 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-
-    env:
-      ENVIRONMENT: "dev"
-
     steps:
-      - name: Checkout code
+      - name: 📦 Checkout code
         uses: actions/checkout@v4
 
-      - name: Set environment variables
+      - name: 🌍 Set environment variables
         run: |
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+          else
+            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+          fi
           echo "ECR_REPOSITORY=${ENVIRONMENT}-ai-shop-helper-backend-ecr" >> $GITHUB_ENV
+          echo "ECR_REPOSITORY_MIGRATE=${ENVIRONMENT}-ai-shop-helper-migrate-ecr" >> $GITHUB_ENV
           echo "ECS_CLUSTER=${ENVIRONMENT}-ai-shop-helper-cluster" >> $GITHUB_ENV
           echo "ECS_SERVICE=${ENVIRONMENT}-ai-shop-helper-backend" >> $GITHUB_ENV
+          echo "ECS_MIGRATE_SERVICE=${ENVIRONMENT}-ai-shop-helper-migrate" >> $GITHUB_ENV
 
-      - name: Configure AWS credentials
+      - name: 🔐 Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Login to Amazon ECR
+      - name: 🔑 Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build, tag, and push image to ECR
+      - name: 🐳 Build, tag, and push app image to ECR
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          docker build --target final \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
-      - name: Export openapi.json
+      - name: 📤 Export openapi.json
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
@@ -58,15 +62,65 @@ jobs:
           docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             python -c "from ai_shop_helper_backend.main import app; import json; print(json.dumps(app.openapi(), indent=2))" > openapi.json
 
-      - name: Upload openapi.json to S3
+      - name: ☁️ Upload openapi.json to S3
         run: |
           aws s3 cp openapi.json s3://ai-shop-helper-dev/openapi/openapi.json \
             --region ${{ secrets.AWS_REGION }} \
             --content-type application/json
 
-      - name: Deploy to ECS
+      - name: 🐳 Build, tag, and push migrate image to ECR
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
         run: |
-          aws ecs update-service \
-            --cluster $ECS_CLUSTER \
-            --service $ECS_SERVICE \
-            --force-new-deployment
+          docker build --target migrate \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_MIGRATE:$IMAGE_TAG \
+            -t $ECR_REGISTRY/$ECR_REPOSITORY_MIGRATE:latest .
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_MIGRATE:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY_MIGRATE:latest
+
+      - name: 📥 Download migration task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_MIGRATE_SERVICE }} \
+            --query taskDefinition \
+            > migration-task-definition.json
+
+      - name: 🔧 Render migrate task definition with new image
+        id: render-migrate
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: migration-task-definition.json
+          container-name: migrate
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY_MIGRATE }}:${{ github.sha }}
+
+      - name: 🗄️ Run migrations
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-migrate.outputs.task-definition }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          run-task: true
+          wait-for-task-stopped: true
+
+      - name: 📥 Download app task definition
+        run: |
+          aws ecs describe-task-definition \
+            --task-definition ${{ env.ECS_SERVICE }} \
+            --query taskDefinition \
+            > task-definition.json
+
+      - name: 🔧 Render app task definition with new image
+        id: render-app
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: backend
+          image: ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:${{ github.sha }}
+
+      - name: 🚀 Deploy to ECS
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v2
+        with:
+          task-definition: ${{ steps.render-app.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true

@@ -37,3 +37,4 @@ uv run pytest
 ```bash
 uv docker compose up --build
 ```
+docker compose --profile tools up
