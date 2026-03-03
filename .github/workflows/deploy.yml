@@ -113,6 +113,8 @@ jobs:
           run-task-security-groups: ${{ secrets.BACKEND_SECURITY_GROUP_ID }}
           run-task-assign-public-IP: DISABLED
           wait-for-task-stopped: true
+          wait-for-service-stability: true
+          wait-for-minutes: 10
 
       - name: 📥 Download app task definition
         run: |
