@@ -60,7 +60,15 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+          docker run --rm \
+            -e SECRET_KEY=dummy \
+            -e DB_HOST=dummy \
+            -e DB_PORT=5432 \
+            -e DB_USERNAME=dummy \
+            -e DB_PASSWORD=dummy \
+            -e DB_NAME=dummy \
+            -e N8N_URL=http://dummy \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             python -c "from ai_shop_helper_backend.main import app; import json; print(json.dumps(app.openapi(), indent=2))" > openapi.json
 
       - name: ☁️ Upload openapi.json to S3
