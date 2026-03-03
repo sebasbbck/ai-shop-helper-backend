@@ -23,10 +23,11 @@ jobs:
       - name: 🌍 Set environment variables
         run: |
           if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
+            ENVIRONMENT=prod
           else
-            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
+            ENVIRONMENT=dev
           fi
+          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY=${ENVIRONMENT}-ai-shop-helper-backend-ecr" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_MIGRATE=${ENVIRONMENT}-ai-shop-helper-migrate-ecr" >> $GITHUB_ENV
           echo "ECS_CLUSTER=${ENVIRONMENT}-ai-shop-helper-cluster" >> $GITHUB_ENV
