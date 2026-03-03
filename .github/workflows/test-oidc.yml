@@ -109,6 +109,9 @@ jobs:
           task-definition: ${{ steps.render-migrate.outputs.task-definition }}
           cluster: ${{ env.ECS_CLUSTER }}
           run-task: true
+          run-task-subnets: ${{ secrets.PRIVATE_SUBNET_IDS }}
+          run-task-security-groups: ${{ secrets.BACKEND_SECURITY_GROUP_ID }}
+          run-task-assign-public-IP: DISABLED
           wait-for-task-stopped: true
 
       - name: 📥 Download app task definition
