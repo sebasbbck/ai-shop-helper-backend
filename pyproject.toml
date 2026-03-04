@@ -25,15 +25,19 @@ build-backend = "uv_build"
 dev = [
     "anyio>=4.12.1",
     "coverage>=7.13.4",
+    "gevent>=25.9.1",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
-    "pytest-cov>=6.0.0",
+    "pytest-cov>=7.0.0",
     "pytest-env>=1.5.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.10",
     "testcontainers[postgres]>=4.14.1",
     "ty>=0.0.20",
 ]
+
+[tool.coverage.run]
+concurrency = ["gevent", "thread"]
 
 [tool.ruff.lint]
 extend-select = ["I", "ANN", "UP"]
