@@ -2,6 +2,7 @@ from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.db import engine
@@ -24,6 +25,15 @@ app = FastAPI(
     generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}",
     lifespan=lifespan,
 )
+
+app.add_middleware(
+    CORSMiddleware,  # ty:ignore[invalid-argument-type]
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 app.include_router(auth.router)
 app.include_router(users.router)
 

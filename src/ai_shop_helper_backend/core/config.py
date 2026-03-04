@@ -1,7 +1,9 @@
-from typing import Literal
+from typing import Annotated, Literal
 
-from pydantic import Field, PostgresDsn, computed_field
+from pydantic import AnyUrl, BeforeValidator, Field, PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from ai_shop_helper_backend.core.utils import parse_urls
 
 
 class Settings(BaseSettings):
@@ -15,13 +17,13 @@ class Settings(BaseSettings):
         ACCESS_TOKEN_EXPIRE_MINUTES (int): The expiration time for access tokens in minutes.
         REFRESH_TOKEN_EXPIRE_DAYS (int): The expiration time for refresh tokens in days.
         REFRESH_TOKEN_COOKIE (str): The name of the cookie to store the refresh token.
-        refresh_token_path (str): The path for the refresh token endpoint.
         DB_HOST (str): The database host.
         DB_PORT (int): The database port.
         DB_USERNAME (str): The database username.
         DB_PASSWORD (str): The database password.
         DB_NAME (str): The database name.
         N8N_URL (str): The URL for n8n workflow automation tool.
+        CORS_ORIGINS (list[AnyUrl]): A list of allowed origins for CORS.
     """
 
     model_config = SettingsConfigDict(
@@ -48,6 +50,16 @@ class Settings(BaseSettings):
     DB_NAME: str = Field(default=...)
     # Other
     N8N_URL: str = Field(default=...)
+    CORS_ORIGINS: Annotated[
+        list[AnyUrl],
+        BeforeValidator(parse_urls),
+    ] = []
+    _DEV_ORIGINS: Annotated[
+        list[AnyUrl],
+        BeforeValidator(parse_urls),
+    ] = [
+        AnyUrl("http://localhost:3000"),
+    ]
 
     @computed_field
     @property
@@ -85,6 +97,19 @@ class Settings(BaseSettings):
             bool: True if the application is running in development environment, False otherwise.
         """
         return self.ENVIRONMENT.lower() == "dev"
+
+    @computed_field
+    @property
+    def cors_origins(self) -> list[str]:
+        """Get the list of allowed origins for CORS, including development defaults if in development environment.
+
+        Returns:
+            list[str]: The list of allowed origins for CORS.
+        """
+        origins = set(self.CORS_ORIGINS)
+        if self.is_development:
+            origins = list(origins.union(set(self._DEV_ORIGINS)))
+        return list(map(lambda x: str(x).rstrip("/"), origins))
 
 
 settings = Settings()

@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Cookie, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete
 from sqlmodel import col, select
@@ -111,6 +111,7 @@ async def refresh(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 async def logout(
+    request: Request,
     response: Response,
     current_user: CurrentUser,
     session: SessionDep,
@@ -122,9 +123,11 @@ async def logout(
         current_user (User): The current authenticated user.
         session (AsyncSession): The database session.
     """
-    await session.exec(
-        delete(RefreshToken).where(col(RefreshToken.user_id) == current_user.id)
-    )
+    token_value = request.cookies.get(settings.REFRESH_TOKEN_COOKIE)
+    if token_value:
+        await session.exec(
+            delete(RefreshToken).where(col(RefreshToken.token) == token_value)
+        )
     response.delete_cookie(
         key=settings.REFRESH_TOKEN_COOKIE,
         path=settings.refresh_token_path,

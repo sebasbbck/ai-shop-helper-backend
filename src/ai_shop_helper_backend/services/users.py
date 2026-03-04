@@ -52,9 +52,8 @@ async def get_users(
         tuple[Sequence[User], int]: A tuple containing the list of users and the total count of users.
     """
     total_result = await session.exec(select(func.count()).select_from(User))
-    total = total_result.one()
     users_result = await session.exec(select(User).offset(offset).limit(limit))
-    return users_result.all(), total
+    return users_result.all(), total_result.one()
 
 
 async def create_user(session: AsyncSession, user_in: UserCreate) -> User:
