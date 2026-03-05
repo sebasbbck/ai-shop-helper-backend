@@ -8,8 +8,13 @@ authors = [
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "alembic>=1.18.4",
     "fastapi[standard]>=0.128.0",
-    "psycopg[binary]>=3.3.2",
+    "httpx>=0.28.1",
+    "psycopg[binary]>=3.3.3",
+    "pwdlib[argon2]>=0.3.0",
+    "pyjwt>=2.11.0",
+    "sqlmodel>=0.0.37",
 ]
 
 [build-system]
@@ -18,24 +23,49 @@ build-backend = "uv_build"
 
 [dependency-groups]
 dev = [
+    "anyio>=4.12.1",
+    "coverage>=7.13.4",
+    "gevent>=25.9.1",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
-    "pytest-async>=0.1.1",
     "pytest-cov>=7.0.0",
+    "pytest-env>=1.5.0",
     "pytest-mock>=3.15.1",
     "ruff>=0.14.10",
-    "ty>=0.0.5",
+    "testcontainers[postgres]>=4.14.1",
+    "ty>=0.0.20",
 ]
 
+[tool.coverage.run]
+concurrency = ["gevent", "thread"]
+
 [tool.ruff.lint]
-extend-select = ["I", "ANN"]
+extend-select = ["I", "ANN", "UP"]
 
 [tool.ruff.lint.per-file-ignores]
 "!src/**.py" = ["ANN"]
 
 [tool.pytest]
 addopts = ["-raq", "--cov=src", "--cov-report=term-missing"]
-testpaths = ["tests"]
+testpaths = ["tests/unit"]
+anyio_mode = "auto"
+env = [
+    "ENVIRONMENT=dev",
+    "SECRET_KEY=test-secret-key-for-testing-only-minimum-32-chars!",
+    "DB_HOST=localhost",
+    "DB_PORT=5432",
+    "DB_USERNAME=postgres",
+    "DB_PASSWORD=postgres",
+    "DB_NAME=testdb",
+    "N8N_URL=http://localhost:5678",
+    "TESTCONTAINERS_RYUK_DISABLED=true",
+]
 
 [tool.coverage.report]
 exclude_lines = ["pass"]
+
+[tool.alembic]
+script_location = "%(here)s/migrations"
+prepend_sys_path = [
+    "."
+]

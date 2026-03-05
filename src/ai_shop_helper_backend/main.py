@@ -1,66 +1,43 @@
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
+from starlette.middleware.cors import CORSMiddleware
 
-app = FastAPI(root_path="/api")
-
-
-@app.get("/")
-def read_root() -> dict[str, str]:
-    return {"Hello": "World"}
+from ai_shop_helper_backend.core.config import settings
+from ai_shop_helper_backend.core.db import engine
+from ai_shop_helper_backend.routers import auth, users
 
 
-@app.get("/health")
+@asynccontextmanager
+async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
+    """Lifespan context manager to handle startup and shutdown events.
+
+    Dispose of the database engine on shutdown to ensure all connections are properly closed.
+    """
+    yield
+    await engine.dispose()
+
+
+app = FastAPI(
+    title=settings.PROJECT_NAME,
+    root_path=settings.API_V1_STR,
+    generate_unique_id_function=lambda route: f"{route.tags[0]}-{route.name}",
+    lifespan=lifespan,
+)
+
+app.add_middleware(
+    CORSMiddleware,  # ty:ignore[invalid-argument-type]
+    allow_origins=settings.cors_origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(auth.router)
+app.include_router(users.router)
+
+
+@app.get("/health", tags=["health"])
 def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
-@app.get("/items/{item_id}")
-def read_item(item_id: int, q: str | None = None) -> dict[str, int | str | None]:
-    return {"item_id": item_id, "q": q}
-
-
-@app.get("/health/db")
-def health_db() -> dict[str, str]:
-    import os
-    import psycopg
-
-    try:
-        connection = psycopg.connect(
-            host=os.getenv("DB_HOST"),
-            port=int(os.getenv("DB_PORT")),
-            user=os.getenv("DB_USERNAME"),
-            password=os.getenv("DB_PASSWORD"),
-            dbname=os.getenv("DB_NAME"),
-        )
-        connection.execute("SELECT 1")
-        connection.close()
-        return {"status": "ok"}
-    except:
-        return {"status": "failed"}
-
-
-def _n8n_endpoint(path: str) -> dict[str, str]:
-    import os
-    import httpx
-
-    try:
-        n8n_url = os.getenv("N8N_URL")
-        response = httpx.get(f"{n8n_url}{path}", timeout=5.0)
-        response.raise_for_status()
-        return {"status": "ok"}
-    except:
-        return {"status": "failed"}
-
-
-@app.get("/health/n8n")
-def health_n8n() -> dict[str, str]:
-    return _n8n_endpoint("/healthz")
-
-
-@app.get("/health/n8n/db")
-def health_n8n_db() -> dict[str, str]:
-    return _n8n_endpoint("/healthz/readiness")
-
-
-@app.get("/health/n8n/webhook")
-def health_n8n_webhook() -> dict[str, str]:
-    return _n8n_endpoint("/webhook/health")
+    return {"status": "OK"}

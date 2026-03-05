@@ -24,14 +24,24 @@ COPY . /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked
 
+FROM base AS migrate
+COPY --from=builder --chown=nonroot:nonroot /app/.venv /app/.venv
+COPY --from=builder --chown=nonroot:nonroot /app/src /app/src
+COPY --from=builder --chown=nonroot:nonroot /app/migrations /app/migrations
+COPY --from=builder --chown=nonroot:nonroot /app/pyproject.toml /app/pyproject.toml
+
+USER nonroot:nonroot
+WORKDIR /app
+ENV PATH="/app/.venv/bin:$PATH"
+
+CMD ["alembic", "upgrade", "head"]
+
 FROM base AS final
 COPY --from=builder --chown=nonroot:nonroot /app/.venv /app/.venv
 COPY --from=builder --chown=nonroot:nonroot /app/src /app/src
 
 USER nonroot:nonroot
-
 WORKDIR /app
-
 ENV PATH="/app/.venv/bin:$PATH"
 
-CMD ["fastapi", "run", "src/ai_shop_helper_backend/main.py", "--port", "8080"]
+CMD ["fastapi", "run", "src/ai_shop_helper_backend/main.py", "--port", "8080", "--reload"]

@@ -1,0 +1,67 @@
+from ai_shop_helper_backend.core.config import Settings
+
+
+class TestIsDevelopment:
+    """Tests for the is_development property of Settings."""
+
+    def test_true_for_dev(self):
+        """is_development should be True when ENVIRONMENT is 'dev'."""
+        assert Settings(ENVIRONMENT="dev").is_development is True
+
+    def test_false_for_prod(self):
+        """is_development should be False when ENVIRONMENT is 'prod'."""
+        assert Settings(ENVIRONMENT="prod").is_development is False
+
+
+class TestRefreshTokenPath:
+    """Tests for the refresh_token_path property of Settings."""
+
+    def test_appends_auth_refresh_to_api_prefix(self):
+        """refresh_token_path should append '/auth/refresh' to the API_V1_STR prefix."""
+        assert (
+            Settings(API_V1_STR="/api/v1").refresh_token_path == "/api/v1/auth/refresh"
+        )
+
+    def test_empty_prefix(self):
+        """If API_V1_STR is empty, refresh_token_path should be '/auth/refresh'."""
+        assert Settings(API_V1_STR="").refresh_token_path == "/auth/refresh"
+
+
+class TestCorsOrigins:
+    """Tests for the cors_origins property of Settings."""
+
+    def test_dev_includes_localhost_origins(self):
+        """In development environment, cors_origins should include localhost origins."""
+        assert any(
+            "localhost" in o
+            for o in Settings(ENVIRONMENT="dev", CORS_ORIGINS="").cors_origins
+        )
+
+    def test_dev_includes_configured_origins(self):
+        """In development environment, cors_origins should include configured origins."""
+        assert any(
+            "dev.example.com" in o
+            for o in Settings(
+                ENVIRONMENT="dev", CORS_ORIGINS="https://dev.example.com"
+            ).cors_origins
+        )
+
+    def test_prod_excludes_localhost(self):
+        """In production environment, cors_origins should not include localhost origins."""
+        assert not any(
+            "localhost" in o
+            for o in Settings(
+                ENVIRONMENT="prod", CORS_ORIGINS="https://example.com"
+            ).cors_origins
+        )
+
+    def test_prod_returns_configured_origins(self):
+        """In production environment, cors_origins should return configured origins."""
+        origins = Settings(
+            ENVIRONMENT="prod", CORS_ORIGINS="https://a.com,https://b.com"
+        ).cors_origins
+        assert origins == ["https://a.com", "https://b.com"]
+
+    def test_empty_cors_origins_in_prod_returns_empty(self):
+        """In production environment, if CORS_ORIGINS is empty, cors_origins should return an empty list."""
+        assert Settings(ENVIRONMENT="prod", CORS_ORIGINS="").cors_origins == []
