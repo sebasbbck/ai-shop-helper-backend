@@ -56,7 +56,8 @@ async def _call_n8n(task_id: str, workflow_id: str, data: dict) -> None:
     try:
         tasks[task_id]["status"] = "processing"
         callback_url = f"{settings.BACKEND_URL}/n8n-test/callback"
-        webhook_url = f"{settings.N8N_URL}/webhook/{workflow_id}"
+        # webhook_url = f"{settings.N8N_URL}/webhook/{workflow_id}"
+        webhook_url = f"https://iadmin.aishophelper.ai/webhook-test/{workflow_id}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             await client.post(
