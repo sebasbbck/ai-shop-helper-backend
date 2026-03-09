@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 import httpx
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
 from ai_shop_helper_backend.core.config import settings
 
 router = APIRouter(prefix="/n8n-test", tags=["n8n-test"])
@@ -11,10 +11,11 @@ tasks: dict[str, dict] = {}
 
 @router.post("/start")
 async def start_workflow(
-    workflow_id: str,
-    data: dict,
     background_tasks: BackgroundTasks,
+    payload: dict = Body(...),
 ) -> dict:
+    workflow_id = payload.get("workflow_id")
+    data = payload.get("data", {})
     task_id = str(uuid.uuid4())
     tasks[task_id] = {
         "status": "pending",
@@ -34,7 +35,7 @@ async def get_task(task_id: str) -> dict:
 
 
 @router.post("/callback")
-async def callback(payload: dict) -> dict:
+async def callback(payload: dict = Body(...)) -> dict:
     task_id = payload.get("task_id")
     if not task_id or task_id not in tasks:
         raise HTTPException(404)
