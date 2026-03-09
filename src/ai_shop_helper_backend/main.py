@@ -6,7 +6,7 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.db import engine
-from ai_shop_helper_backend.routers import auth, users
+from ai_shop_helper_backend.routers import auth, n8n_test, users
 
 
 @asynccontextmanager
@@ -36,6 +36,7 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(n8n_test.router)
 
 
 @app.get("/health", tags=["health"])

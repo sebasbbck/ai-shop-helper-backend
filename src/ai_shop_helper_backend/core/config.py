@@ -23,6 +23,7 @@ class Settings(BaseSettings):
         DB_PASSWORD (str): The database password.
         DB_NAME (str): The database name.
         N8N_URL (str): The URL for n8n workflow automation tool.
+        BACKEND_URL (str): The backend base URL including /api/v1 for webhook callbacks.
         CORS_ORIGINS (list[AnyUrl]): A list of allowed origins for CORS.
     """
 
@@ -48,8 +49,10 @@ class Settings(BaseSettings):
     DB_USERNAME: str = Field(default=...)
     DB_PASSWORD: str = Field(default=...)
     DB_NAME: str = Field(default=...)
-    # Other
+    # Webhooks
     N8N_URL: str = Field(default=...)
+    BACKEND_URL: str = Field(default=...)
+    # Other
     CORS_ORIGINS: Annotated[
         list[AnyUrl],
         BeforeValidator(parse_urls),
