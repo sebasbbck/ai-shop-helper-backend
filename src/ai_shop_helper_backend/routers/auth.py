@@ -152,6 +152,8 @@ async def _issue_tokens(
     Returns:
         Token: The access token.
     """
+    user = await users.get_user_by_id(session, user_id)
+
     refresh_token_value = security.generate_refresh_token()
     session.add(
         RefreshToken(
@@ -168,4 +170,4 @@ async def _issue_tokens(
         samesite="strict",
         path=settings.refresh_token_path,
     )
-    return Token(access_token=security.create_access_token(str(user_id)))
+    return Token(access_token=security.create_access_token(str(user_id), user.is_superuser))

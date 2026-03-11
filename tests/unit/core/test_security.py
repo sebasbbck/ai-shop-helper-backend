@@ -43,7 +43,7 @@ class TestAccessToken:
     @pytest.mark.parametrize("subject", ["uuid-1234", "some-other-sub"])
     def test_create_returns_decodable_jwt(self, subject: str):
         """Test that the subject is correctly encoded in the token."""
-        token = create_access_token(subject)
+        token = create_access_token(subject, False)
         assert decode_access_token(token) == subject
 
     def test_decode_expired_returns_none(self):
@@ -59,8 +59,15 @@ class TestAccessToken:
 
     def test_decode_tampered_returns_none(self):
         """Test that decoding a tampered token returns None."""
-        token = create_access_token("user-123")
+        token = create_access_token("user-123", False)
         assert decode_access_token(token + "tampered") is None
+
+    @pytest.mark.parametrize("is_superuser", [True, False])
+    def test_create_includes_is_superuser(self, is_superuser: bool):
+        """Test that is_superuser is correctly encoded in the token."""
+        token = create_access_token("user-123", is_superuser)
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM])
+        assert payload["is_superuser"] == is_superuser
 
 
 class TestRefreshToken:
