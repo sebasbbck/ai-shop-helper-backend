@@ -16,6 +16,8 @@ async def start_workflow(
 ) -> dict:
     workflow_id = payload.get("workflow_id")
     data = payload.get("data", {})
+    aws = payload.get("aws", True)
+    n8n_url = payload.get("n8n_url", "")
     task_id = str(uuid.uuid4())
     tasks[task_id] = {
         "status": "pending",
@@ -34,7 +36,7 @@ async def get_task(task_id: str) -> dict:
     return tasks[task_id]
 
 
-@router.post("/callback") # task_id in route?
+@router.post("/n8n-callback") # task_id in route?
 async def callback(payload: dict = Body(...)) -> dict:
     task_id = payload.get("task_id")
     if not task_id or task_id not in tasks:
