@@ -57,7 +57,7 @@ async def callback(payload: dict = Body(...)) -> dict:
 async def _call_n8n(task_id: str, workflow_id: str, data: dict, aws: bool, n8n_url: str) -> None:
     try:
         tasks[task_id]["status"] = "processing"
-        callback_url = f"{settings.BACKEND_URL}/n8n-test/callback"
+        callback_url = f"{settings.BACKEND_URL}/n8n-test/n8n-callback"
 
         if aws:
             n8n_url = settings.N8N_URL
