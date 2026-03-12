@@ -6,7 +6,18 @@ from starlette.middleware.cors import CORSMiddleware
 
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.db import engine
-from ai_shop_helper_backend.routers import auth, n8n_test, users
+from ai_shop_helper_backend.routers import (
+    agent_project_types,
+    agents,
+    auth,
+    n8n_test,
+    org_users,
+    orgs,
+    project_types,
+    projects,
+    roles,
+    users,
+)
 
 
 @asynccontextmanager
@@ -34,8 +45,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# superuser only
+app.include_router(project_types.router)
+app.include_router(roles.router)
+app.include_router(agents.router)
+app.include_router(agent_project_types.router)
+
+# org
+app.include_router(orgs.router)
+app.include_router(org_users.router)
+app.include_router(projects.router)
+
 app.include_router(auth.router)
 app.include_router(users.router)
+
+# testing
 app.include_router(n8n_test.router)
 
 

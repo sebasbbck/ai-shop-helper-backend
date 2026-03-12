@@ -31,6 +31,37 @@ class TimestampMixin(CreatedAtMixin, UpdatedAtMixin):
     pass
 
 
+class CreatedByMixin(SQLModel):
+    """Mixin that adds created_by field to a SQLModel model."""
+
+    created_by: uuid.UUID = Field(
+        foreign_key="user.id",
+        nullable=False
+    )
+
+
+class UpdatedByMixin(SQLModel):
+    """Mixin that adds updated_by field to a SQLModel model."""
+
+    updated_by: uuid.UUID = Field(
+        foreign_key="user.id",
+        nullable=False
+    )
+
+
+class AuthorMixin(CreatedByMixin, UpdatedByMixin):
+    """Mixin that adds created_by and updated_by fields to a SQLModel model."""
+
+    pass
+
+
+class AuditMixin(TimestampMixin, AuthorMixin):
+    """Mixin that adds created_at, updated_at, created_by and updated_by fields
+    to a SQLModel model."""
+
+    pass
+
+
 class UUIDMixin(SQLModel):
     """Mixin that adds a UUID primary key field to a SQLModel model."""
 
