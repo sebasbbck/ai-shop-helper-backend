@@ -23,7 +23,7 @@ async def start_workflow(
         "created_at": datetime.utcnow().isoformat(),
         "result": None,
     }
-    background_tasks.add_task(_call_n8n, task_id, workflow_id, data)
+    background_tasks.add_task(_call_n8n, task_id, workflow_id, data, aws, n8n_url)
     return {"task_id": task_id}
 
 
@@ -52,12 +52,15 @@ async def callback(payload: dict = Body(...)) -> dict:
     return {"status": "OK"}
 
 
-async def _call_n8n(task_id: str, workflow_id: str, data: dict) -> None:
+async def _call_n8n(task_id: str, workflow_id: str, data: dict, aws: bool, n8n_url: str) -> None:
     try:
         tasks[task_id]["status"] = "processing"
         callback_url = f"{settings.BACKEND_URL}/n8n-test/callback"
-        webhook_url = f"{settings.N8N_URL}/webhook/{workflow_id}"
-        # webhook_url = f"https://iadmin.aishophelper.ai/webhook-test/{workflow_id}"
+
+        if aws:
+            n8n_url = settings.N8N_URL
+
+        webhook_url = f"{n8n_url}/{workflow_id}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
             await client.post(
