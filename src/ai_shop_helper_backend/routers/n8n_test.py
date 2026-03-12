@@ -1,8 +1,10 @@
 import uuid
-from datetime import datetime
+
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Body, HTTPException
+
 from ai_shop_helper_backend.core.config import settings
+from ai_shop_helper_backend.core.utils import get_datetime_utc
 
 router = APIRouter(prefix="/n8n-test", tags=["n8n-test"])
 
@@ -22,7 +24,7 @@ async def start_workflow(
     tasks[task_id] = {
         "status": "pending",
         "workflow_id": workflow_id,
-        "created_at": datetime.utcnow().isoformat(),
+        "created_at": get_datetime_utc().isoformat(),
         "result": None,
     }
     background_tasks.add_task(_call_n8n, task_id, workflow_id, data, aws, n8n_url)
@@ -36,7 +38,7 @@ async def get_task(task_id: str) -> dict:
     return tasks[task_id]
 
 
-@router.post("/n8n-callback") # task_id in route?
+@router.post("/n8n-callback")  # task_id in route?
 async def n8n_callback(payload: dict = Body(...)) -> dict:
     task_id = payload.get("task_id")
     if not task_id or task_id not in tasks:
@@ -49,18 +51,20 @@ async def n8n_callback(payload: dict = Body(...)) -> dict:
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["error"] = payload.get("error")
 
-    tasks[task_id]["completed_at"] = datetime.utcnow().isoformat()
+    tasks[task_id]["completed_at"] = get_datetime_utc().isoformat()
 
     return {"status": "OK"}
 
 
-async def _call_n8n(task_id: str, workflow_id: str, data: dict, aws: bool, n8n_url: str) -> None:
+async def _call_n8n(
+    task_id: str, workflow_id: str, data: dict, aws: bool, n8n_url: str
+) -> None:
     try:
         tasks[task_id]["status"] = "processing"
         callback_url = f"{settings.BACKEND_URL}/n8n-test/n8n-callback"
 
         if aws:
-            n8n_url = settings.N8N_URL
+            n8n_url = f"{settings.N8N_URL}/webhook"
 
         webhook_url = f"{n8n_url}/{workflow_id}"
 
