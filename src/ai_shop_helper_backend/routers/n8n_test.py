@@ -37,7 +37,7 @@ async def get_task(task_id: str) -> dict:
 
 
 @router.post("/n8n-callback") # task_id in route?
-async def callback(payload: dict = Body(...)) -> dict:
+async def n8n_callback(payload: dict = Body(...)) -> dict:
     task_id = payload.get("task_id")
     if not task_id or task_id not in tasks:
         raise HTTPException(404)
