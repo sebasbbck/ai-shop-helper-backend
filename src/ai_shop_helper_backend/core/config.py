@@ -1,4 +1,5 @@
 from typing import Annotated, Literal
+from urllib.parse import quote_plus
 
 from pydantic import AnyUrl, BeforeValidator, Field, PostgresDsn, computed_field
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -84,8 +85,8 @@ class Settings(BaseSettings):
         """
         return PostgresDsn.build(
             scheme="postgresql+psycopg",
-            username=self.DB_USERNAME,
-            password=self.DB_PASSWORD,
+            username=quote_plus(self.DB_USERNAME),
+            password=quote_plus(self.DB_PASSWORD),
             host=self.DB_HOST,
             port=self.DB_PORT,
             path=self.DB_NAME,

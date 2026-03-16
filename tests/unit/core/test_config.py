@@ -65,3 +65,19 @@ class TestCorsOrigins:
     def test_empty_cors_origins_in_prod_returns_empty(self):
         """In production environment, if CORS_ORIGINS is empty, cors_origins should return an empty list."""
         assert Settings(ENVIRONMENT="prod", CORS_ORIGINS="").cors_origins == []
+
+
+class TestDbUrl:
+    """Tests for the db_url property of Settings."""
+
+    def test_handles_special_characters(self):
+        """Should url encode special characters in password and username."""
+        settings = Settings(
+            DB_HOST="localhost",
+            DB_PORT=5432,
+            DB_USERNAME="t3$t@[#u$3R]",
+            DB_PASSWORD="t3$t@[#u$3R]p@$$W0rD",
+            DB_NAME="testdb",
+        )
+        expected_url = "postgresql+psycopg://t3%24t%40%5B%23u%243R%5D:t3%24t%40%5B%23u%243R%5Dp%40%24%24W0rD@localhost:5432/testdb"
+        assert str(settings.db_url) == expected_url
