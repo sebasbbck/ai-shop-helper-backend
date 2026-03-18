@@ -38,10 +38,9 @@ async def get_task(task_id: str) -> dict:
     return tasks[task_id]
 
 
-@router.post("/n8n-callback")  # task_id in route?
-async def n8n_callback(payload: dict = Body(...)) -> dict:
-    task_id = payload.get("task_id")
-    if not task_id or task_id not in tasks:
+@router.post("/n8n-callback/{task_id}")
+async def n8n_callback(task_id: str, payload: dict = Body(...)) -> dict:
+    if task_id not in tasks:
         raise HTTPException(404)
 
     if payload.get("success"):
@@ -61,7 +60,7 @@ async def _call_n8n(
 ) -> None:
     try:
         tasks[task_id]["status"] = "processing"
-        callback_url = f"{settings.BACKEND_URL}/n8n-test/n8n-callback"
+        callback_url = f"{settings.BACKEND_URL}/n8n-test/n8n-callback/{task_id}"
 
         if aws:
             n8n_url = f"{settings.N8N_URL}/webhook"
@@ -69,7 +68,7 @@ async def _call_n8n(
         webhook_url = f"{n8n_url}/{workflow_id}"
 
         async with httpx.AsyncClient(timeout=30.0) as client:
-            await client.post(
+            response = await client.post(
                 webhook_url,
                 json={
                     "task_id": task_id,
@@ -77,6 +76,10 @@ async def _call_n8n(
                     "data": data,
                 },
             )
+            tasks[task_id]["webhook_response"] = {
+                "status_code": response.status_code,
+                "data": response.json(),
+            }
     except Exception as e:
         tasks[task_id]["status"] = "failed"
         tasks[task_id]["error"] = str(e)
