@@ -68,12 +68,12 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def refresh_token_path(self) -> str:
-        """Construct the path for the refresh token endpoint.
+        """Construct the path for the refresh token cookie.
 
         Returns:
-            str: The path for the refresh token endpoint.
+            str: The path for the refresh token cookie.
         """
-        return f"{self.API_V1_STR}/auth/refresh"
+        return "/"
 
     @computed_field
     @property
