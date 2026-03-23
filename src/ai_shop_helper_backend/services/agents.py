@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.models.agent_project_types import AgentProjectType
 from ai_shop_helper_backend.models.agents import Agent
 from ai_shop_helper_backend.schemas.agents import AgentCreate, AgentUpdate
 
@@ -53,6 +54,26 @@ async def get_agents(
     total_result = await session.exec(select(func.count()).select_from(Agent))
     agents_result = await session.exec(select(Agent).offset(offset).limit(limit))
     return agents_result.all(), total_result.one()
+
+
+async def get_agents_by_project_type(
+    session: AsyncSession, project_type_id: UUID
+) -> Sequence[Agent]:
+    """Get all agents available for a specific project type.
+
+    Args:
+        session (AsyncSession): The database session.
+        project_type_id (UUID): The project type ID.
+
+    Returns:
+        Sequence[Agent]: List of agents for the project type.
+    """
+    result = await session.exec(
+        select(Agent)
+        .join(AgentProjectType, Agent.id == AgentProjectType.agent_id)
+        .where(AgentProjectType.project_type_id == project_type_id)
+    )
+    return result.all()
 
 
 async def create_agent(
