@@ -5,6 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.deps import (
     CurrentSuperUser,
+    CurrentUser,
     PaginationDep,
     SessionDep,
 )
@@ -49,23 +50,32 @@ async def create_agent(
 
 @router.get("/", response_model=PaginatedResponse[AgentPublic])
 async def get_agents(
-    current_superuser: CurrentSuperUser,
+    current_user: CurrentUser,
     pagination: PaginationDep,
     session: SessionDep,
+    project_type_id: UUID | None = None,
 ) -> PaginatedResponse[AgentPublic]:
-    """Get a paginated list of agents. Superuser only.
+    """Get a paginated list of agents. Authenticated users only.
 
     Args:
-        current_superuser (User): The current superuser.
+        current_user (User): The current authenticated user.
         pagination (PaginationParams): The pagination parameters.
         session (SessionDep): The database session.
+        project_type_id (UUID | None): Optional filter by project type ID.
 
     Returns:
         PaginatedResponse[AgentPublic]: The paginated list of agents.
     """
-    items, total = await agents.get_agents(session, pagination.offset, pagination.limit)
+    if project_type_id:
+        items = await agents.get_agents_by_project_type(session, project_type_id)
+        total = len(items)
+        paginated_items = items[pagination.offset : pagination.offset + pagination.limit]
+    else:
+        items, total = await agents.get_agents(session, pagination.offset, pagination.limit)
+        paginated_items = items
+
     return PaginatedResponse(
-        items=[AgentPublic.model_validate(a) for a in items],
+        items=[AgentPublic.model_validate(a) for a in paginated_items],
         total=total,
         offset=pagination.offset,
         limit=pagination.limit,

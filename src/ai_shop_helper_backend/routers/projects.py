@@ -8,14 +8,13 @@ from ai_shop_helper_backend.core.deps import (
     PaginationDep,
     SessionDep,
 )
-from ai_shop_helper_backend.schemas.agents import AgentPublic
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
 from ai_shop_helper_backend.schemas.projects import (
     ProjectCreate,
     ProjectPublic,
     ProjectUpdate,
 )
-from ai_shop_helper_backend.services import agents, project_types, projects
+from ai_shop_helper_backend.services import project_types, projects
 
 router = APIRouter(prefix="/orgs", tags=["projects"])
 
@@ -208,35 +207,3 @@ async def delete_project(
             detail="Project not found",
         )
     await projects.delete_project(session, project)
-
-
-@router.get("/{org_id}/projects/{project_id}/agents", response_model=list[AgentPublic])
-async def get_project_agents(
-    org_id: UUID,
-    project_id: UUID,
-    org_member: CurrentOrgMember,
-    session: SessionDep,
-) -> list[AgentPublic]:
-    """Get agents available for a project. Member access.
-
-    Args:
-        org_id (UUID): The organization ID.
-        project_id (UUID): The project ID.
-        org_member (tuple[User, OrgUser]): The current user and their org membership.
-        session (SessionDep): The database session.
-
-    Returns:
-        list[AgentPublic]: List of agents available for the project's type.
-
-    Raises:
-        HTTPException: 404 if the project does not exist or belongs to a different org.
-    """
-    project = await projects.get_project_by_id(session, project_id)
-    if not project or project.org_id != org_id:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Project not found",
-        )
-
-    agent_list = await agents.get_agents_by_project_type(session, project.project_type_id)
-    return [AgentPublic.model_validate(agent) for agent in agent_list]
