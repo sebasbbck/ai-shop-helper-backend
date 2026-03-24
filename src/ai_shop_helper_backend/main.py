@@ -55,6 +55,7 @@ app.include_router(agent_project_types.router)
 app.include_router(orgs.router)
 app.include_router(org_users.router)
 app.include_router(projects.router)
+app.include_router(projects.user_router)
 
 app.include_router(auth.router)
 app.include_router(users.router)

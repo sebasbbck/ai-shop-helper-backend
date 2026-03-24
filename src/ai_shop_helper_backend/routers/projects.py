@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, status
 from ai_shop_helper_backend.core.deps import (
     CurrentOrgAdmin,
     CurrentOrgMember,
+    CurrentUser,
     PaginationDep,
     SessionDep,
 )
@@ -17,6 +18,7 @@ from ai_shop_helper_backend.schemas.projects import (
 from ai_shop_helper_backend.services import project_types, projects
 
 router = APIRouter(prefix="/orgs", tags=["projects"])
+user_router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.post(
@@ -207,3 +209,30 @@ async def delete_project(
             detail="Project not found",
         )
     await projects.delete_project(session, project)
+
+
+@user_router.get("/", response_model=PaginatedResponse[ProjectPublic])
+async def get_my_projects(
+    current_user: CurrentUser,
+    pagination: PaginationDep,
+    session: SessionDep,
+) -> PaginatedResponse[ProjectPublic]:
+    """Get all projects the current user has access to across all organizations.
+
+    Args:
+        current_user (User): The current authenticated user.
+        pagination (PaginationParams): The pagination parameters.
+        session (SessionDep): The database session.
+
+    Returns:
+        PaginatedResponse[ProjectPublic]: The paginated list of projects.
+    """
+    items, total = await projects.get_user_projects(
+        session, current_user.id, pagination.offset, pagination.limit
+    )
+    return PaginatedResponse(
+        items=[ProjectPublic.model_validate(p) for p in items],
+        total=total,
+        offset=pagination.offset,
+        limit=pagination.limit,
+    )

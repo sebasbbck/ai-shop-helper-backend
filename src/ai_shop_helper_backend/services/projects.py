@@ -4,6 +4,7 @@ from uuid import UUID
 from sqlmodel import func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.models.org_users import OrgUser
 from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.schemas.projects import ProjectCreate, ProjectUpdate
 
@@ -62,6 +63,40 @@ async def get_projects(
     )
     projects_result = await session.exec(
         select(Project).where(Project.org_id == org_id).offset(offset).limit(limit)
+    )
+    return projects_result.all(), total_result.one()
+
+
+async def get_user_projects(
+    session: AsyncSession,
+    user_id: UUID,
+    offset: int,
+    limit: int,
+) -> tuple[Sequence[Project], int]:
+    """Get a paginated list of all projects the user has access to across all orgs.
+
+    Args:
+        session (AsyncSession): The database session.
+        user_id (UUID): The user ID.
+        offset (int): The number of projects to skip.
+        limit (int): The maximum number of projects to return.
+
+    Returns:
+        tuple[Sequence[Project], int]: A tuple containing the list of projects and the total count.
+    """
+    total_result = await session.exec(
+        select(func.count())
+        .select_from(Project)
+        .join(OrgUser, Project.org_id == OrgUser.org_id)
+        .where(OrgUser.user_id == user_id)
+    )
+
+    projects_result = await session.exec(
+        select(Project)
+        .join(OrgUser, Project.org_id == OrgUser.org_id)
+        .where(OrgUser.user_id == user_id)
+        .offset(offset)
+        .limit(limit)
     )
     return projects_result.all(), total_result.one()
 
