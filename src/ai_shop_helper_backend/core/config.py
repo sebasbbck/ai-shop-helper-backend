@@ -73,7 +73,8 @@ class Settings(BaseSettings):
         Returns:
             str: The path for the refresh token endpoint.
         """
-        return f"{self.API_V1_STR}/auth/refresh"
+        # return f"{self.API_V1_STR}/auth/refresh"
+        return "/"
 
     @computed_field
     @property
