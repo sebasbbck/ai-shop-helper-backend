@@ -6,6 +6,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.org_users import OrgUser
+from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.schemas.orgs import OrgCreate, OrgUpdate
 
 
@@ -137,3 +138,51 @@ async def delete_org(session: AsyncSession, org: Org) -> None:
         org (Org): The organization to delete.
     """
     await session.delete(org)
+
+
+async def get_user_orgs_with_projects(
+    session: AsyncSession, user_id: UUID, offset: int, limit: int
+) -> tuple[list[tuple[Org, list[Project]]], int]:
+    """Get organizations the user is a member of with their projects.
+
+    Args:
+        session (AsyncSession): The database session.
+        user_id (UUID): The user ID.
+        offset (int): The number of organizations to skip.
+        limit (int): The maximum number of organizations to return.
+
+    Returns:
+        tuple[list[tuple[Org, list[Project]]], int]: A tuple containing the list of
+            organizations with their projects and the total count of organizations.
+    """
+    total_result = await session.exec(
+        select(func.count())
+        .select_from(Org)
+        .join(OrgUser, Org.id == OrgUser.org_id)
+        .where(OrgUser.user_id == user_id)
+    )
+    total = total_result.one()
+
+    orgs_result = await session.exec(
+        select(Org)
+        .join(OrgUser, Org.id == OrgUser.org_id)
+        .where(OrgUser.user_id == user_id)
+        .offset(offset)
+        .limit(limit)
+    )
+    orgs = orgs_result.all()
+
+    org_ids = [org.id for org in orgs]
+    if org_ids:
+        projects_result = await session.exec(
+            select(Project).where(Project.org_id.in_(org_ids))
+        )
+        all_projects = projects_result.all()
+    else:
+        all_projects = []
+
+    projects_by_org: dict[UUID, list[Project]] = {org.id: [] for org in orgs}
+    for project in all_projects:
+        projects_by_org[project.org_id].append(project)
+
+    return [(org, projects_by_org[org.id]) for org in orgs], total

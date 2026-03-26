@@ -39,7 +39,6 @@ async def create_agent_project_type(
         HTTPException: 404 if agent or project type does not exist.
         HTTPException: 409 if the relationship already exists.
     """
-    # Validate agent exists
     agent = await agents.get_agent_by_id(session, apt_in.agent_id)
     if not agent:
         raise HTTPException(
@@ -47,7 +46,6 @@ async def create_agent_project_type(
             detail="Agent not found",
         )
 
-    # Validate project type exists
     project_type = await project_types.get_project_type_by_id(
         session, apt_in.project_type_id
     )
@@ -57,7 +55,6 @@ async def create_agent_project_type(
             detail="Project type not found",
         )
 
-    # Check if relationship already exists
     existing = await agent_project_types.get_agent_project_type_by_combination(
         session, apt_in.agent_id, apt_in.project_type_id
     )

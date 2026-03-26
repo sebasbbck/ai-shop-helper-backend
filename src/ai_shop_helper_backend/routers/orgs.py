@@ -12,7 +12,8 @@ from ai_shop_helper_backend.core.deps import (
     SessionDep,
 )
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
-from ai_shop_helper_backend.schemas.orgs import OrgCreate, OrgPublic, OrgUpdate
+from ai_shop_helper_backend.schemas.orgs import OrgCreate, OrgPublic, OrgUpdate, OrgWithProjects
+from ai_shop_helper_backend.schemas.projects import ProjectPublic
 from ai_shop_helper_backend.services import orgs
 
 router = APIRouter(prefix="/orgs", tags=["orgs"])
@@ -46,13 +47,13 @@ async def create_org(
     return OrgPublic.model_validate(org)
 
 
-@router.get("/", response_model=PaginatedResponse[OrgPublic])
+@router.get("/", response_model=PaginatedResponse[OrgWithProjects])
 async def get_my_orgs(
     current_user: CurrentUser,
     pagination: PaginationDep,
     session: SessionDep,
-) -> PaginatedResponse[OrgPublic]:
-    """Get organizations the current user is a member of.
+) -> PaginatedResponse[OrgWithProjects]:
+    """Get organizations the current user is a member of with nested projects.
 
     Args:
         current_user (User): The current authenticated user.
@@ -60,13 +61,19 @@ async def get_my_orgs(
         session (SessionDep): The database session.
 
     Returns:
-        PaginatedResponse[OrgPublic]: The paginated list of organizations.
+        PaginatedResponse[OrgWithProjects]: The paginated list of organizations with projects.
     """
-    items, total = await orgs.get_user_orgs(
+    orgs_with_projects, total = await orgs.get_user_orgs_with_projects(
         session, current_user.id, pagination.offset, pagination.limit
     )
     return PaginatedResponse(
-        items=[OrgPublic.model_validate(org) for org in items],
+        items=[
+            OrgWithProjects(
+                **OrgPublic.model_validate(org).model_dump(),
+                projects=[ProjectPublic.model_validate(p) for p in projects]
+            )
+            for org, projects in orgs_with_projects
+        ],
         total=total,
         offset=pagination.offset,
         limit=pagination.limit,
