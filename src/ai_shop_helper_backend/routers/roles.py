@@ -5,6 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.deps import (
     CurrentSuperUser,
+    CurrentUser,
     PaginationDep,
     SessionDep,
 )
@@ -45,14 +46,14 @@ async def create_role(
 
 @router.get("/", response_model=PaginatedResponse[RolePublic])
 async def get_roles(
-    current_superuser: CurrentSuperUser,
+    current_user: CurrentUser,
     pagination: PaginationDep,
     session: SessionDep,
 ) -> PaginatedResponse[RolePublic]:
-    """Get a paginated list of roles. Superuser only.
+    """Get a paginated list of roles.
 
     Args:
-        current_superuser (User): The current superuser.
+        current_user (User): The current authenticated user.
         pagination (PaginationParams): The pagination parameters.
         session (SessionDep): The database session.
 
@@ -71,14 +72,14 @@ async def get_roles(
 @router.get("/{role_id}", response_model=RolePublic)
 async def get_role(
     role_id: UUID,
-    current_superuser: CurrentSuperUser,
+    current_user: CurrentUser,
     session: SessionDep,
 ) -> RolePublic:
-    """Get a role by ID. Superuser only.
+    """Get a role by ID.
 
     Args:
         role_id (UUID): The role ID.
-        current_superuser (User): The current superuser.
+        current_user (User): The current authenticated user.
         session (SessionDep): The database session.
 
     Returns:

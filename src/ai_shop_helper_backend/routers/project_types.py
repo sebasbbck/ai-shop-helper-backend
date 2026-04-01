@@ -5,6 +5,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.deps import (
     CurrentSuperUser,
+    CurrentUser,
     PaginationDep,
     SessionDep,
 )
@@ -51,14 +52,14 @@ async def create_project_type(
 
 @router.get("/", response_model=PaginatedResponse[ProjectTypePublic])
 async def get_project_types(
-    current_superuser: CurrentSuperUser,
+    current_user: CurrentUser,
     pagination: PaginationDep,
     session: SessionDep,
 ) -> PaginatedResponse[ProjectTypePublic]:
-    """Get a paginated list of project types. Superuser only.
+    """Get a paginated list of project types.
 
     Args:
-        current_superuser (User): The current superuser.
+        current_user (User): The current authenticated user.
         pagination (PaginationParams): The pagination parameters.
         session (SessionDep): The database session.
 
@@ -79,14 +80,14 @@ async def get_project_types(
 @router.get("/{project_type_id}", response_model=ProjectTypePublic)
 async def get_project_type(
     project_type_id: UUID,
-    current_superuser: CurrentSuperUser,
+    current_user: CurrentUser,
     session: SessionDep,
 ) -> ProjectTypePublic:
-    """Get a project type by ID. Superuser only.
+    """Get a project type by ID.
 
     Args:
         project_type_id (UUID): The project type ID.
-        current_superuser (User): The current superuser.
+        current_user (User): The current authenticated user.
         session (SessionDep): The database session.
 
     Returns:
