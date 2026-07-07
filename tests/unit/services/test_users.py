@@ -10,6 +10,7 @@ from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.schemas.users import UserAdminUpdate, UserCreate, UserUpdate
 from ai_shop_helper_backend.services.users import (
     authenticate,
+    create_google_user,
     create_user,
     delete_user,
     get_user_by_email,
@@ -96,6 +97,22 @@ class TestGetUsers:
         assert mock_session.exec.call_count == 2
         assert total == 1
         assert items == [user]
+
+
+class TestCreateGoogleUser:
+    async def test_creates_user_with_email_and_name(self, mock_session: AsyncMock) -> None:
+        result = await create_google_user(mock_session, name="Google User", email="google@example.com")
+
+        mock_session.add.assert_called_once()
+        assert result.email == "google@example.com"
+        assert result.name == "Google User"
+
+    async def test_sets_random_hashed_password(self, mock_session: AsyncMock) -> None:
+        result1 = await create_google_user(mock_session, name="A", email="a@example.com")
+        result2 = await create_google_user(mock_session, name="B", email="b@example.com")
+
+        assert result1.hashed_password != "password"
+        assert result1.hashed_password != result2.hashed_password
 
 
 class TestCreateUser:

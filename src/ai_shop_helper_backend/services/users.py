@@ -56,6 +56,28 @@ async def get_users(
     return users_result.all(), total_result.one()
 
 
+async def create_google_user(session: AsyncSession, name: str, email: str) -> User:
+    """Create a new user from Google OAuth (no password login possible).
+
+    Args:
+        session (AsyncSession): The database session.
+        name (str): The user's display name from Google.
+        email (str): The user's verified email from Google.
+
+    Returns:
+        User: The created user with a random hashed password.
+    """
+    import secrets as _secrets
+
+    user = User(
+        email=email,
+        name=name,
+        hashed_password=hash_password(_secrets.token_urlsafe(32)),
+    )
+    session.add(user)
+    return user
+
+
 async def create_user(session: AsyncSession, user_in: UserCreate) -> User:
     """Create a new user.
 
