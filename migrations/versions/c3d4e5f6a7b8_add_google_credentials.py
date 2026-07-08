@@ -5,7 +5,7 @@ Revises: 60ef5c669a21
 Create Date: 2026-07-07 00:00:00.000000
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
@@ -34,8 +34,12 @@ def upgrade() -> None:
         sa.UniqueConstraint("google_id", name="uq_googlecredential_google_id"),
         sa.UniqueConstraint("user_id", name="uq_googlecredential_user_id"),
     )
-    op.create_index("ix_googlecredential_google_id", "googlecredential", ["google_id"], unique=True)
-    op.create_index("ix_googlecredential_user_id", "googlecredential", ["user_id"], unique=True)
+    op.create_index(
+        "ix_googlecredential_google_id", "googlecredential", ["google_id"], unique=True
+    )
+    op.create_index(
+        "ix_googlecredential_user_id", "googlecredential", ["user_id"], unique=True
+    )
 
 
 def downgrade() -> None:
