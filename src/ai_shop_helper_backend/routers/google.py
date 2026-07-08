@@ -67,6 +67,9 @@ def _set_state_cookie(response: Response, state: str) -> None:
 
 async def _issue_tokens(session: AsyncSession, response: Response, user_id: UUID) -> Token:
     user = await users_svc.get_user_by_id(session, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+
     refresh_token_value = _security.generate_refresh_token()
     session.add(
         RefreshToken(
