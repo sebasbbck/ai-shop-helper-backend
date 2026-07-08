@@ -16,17 +16,17 @@ repos:
     hooks:
     -   id: ruff-formatter
         name: linter
-        entry: ruff format
+        entry: uv run ruff format
         language: system
         types: [python]
     -   id: ruff-checker
         name: formatter
-        entry: ruff check --fix
+        entry: uv run ruff check --fix
         language: system
         types: [python]
     -   id: ty
         name: typing-checker
-        entry: ty check
+        entry: uv run ty check
         language: system
         types: [python]
         require_serial: true

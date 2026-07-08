@@ -255,3 +255,138 @@ class TestGoogleCallbackLogin:
 
         assert response.status_code == 400
         assert "not verified" in response.json()["detail"]
+
+
+class TestGoogleStatus:
+    async def test_returns_not_connected_when_no_credentials(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.get("/google/status", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connected"] is False
+        assert data.get("google_email") is None
+
+    async def test_returns_connected_with_email_when_credentials_exist(
+        self, client: AsyncClient, auth_headers: dict, session: AsyncSession
+    ) -> None:
+        me = await client.get("/users/me", headers=auth_headers)
+        user_id = me.json()["id"]
+        await _add_google_credential(session, user_id)
+
+        response = await client.get("/google/status", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["connected"] is True
+        assert data["google_email"] == "user@gmail.com"
+
+
+class TestGoogleConnect:
+    async def test_returns_auth_url_for_authenticated_user(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.get("/google/connect", headers=auth_headers)
+
+        assert response.status_code == 200
+        data = response.json()
+        assert "auth_url" in data
+        assert "accounts.google.com" in data["auth_url"]
+
+    async def test_connect_url_includes_full_scopes(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.get("/google/connect", headers=auth_headers)
+
+        auth_url = response.json()["auth_url"]
+        assert "analytics" in auth_url
+
+
+class TestGA4Accounts:
+    async def test_returns_403_when_not_connected(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.get("/google/ga4/accounts", headers=auth_headers)
+
+        assert response.status_code == 403
+
+    async def test_returns_accounts_when_connected(
+        self, client: AsyncClient, auth_headers: dict, session: AsyncSession
+    ) -> None:
+        me = await client.get("/users/me", headers=auth_headers)
+        user_id = me.json()["id"]
+        await _add_google_credential(session, user_id)
+
+        fake_accounts = {"accounts": [{"name": "accounts/123", "displayName": "Test"}]}
+
+        with patch(
+            "ai_shop_helper_backend.services.google.google_get",
+            new_callable=AsyncMock,
+            return_value=fake_accounts,
+        ):
+            response = await client.get("/google/ga4/accounts", headers=auth_headers)
+
+        assert response.status_code == 200
+        assert response.json() == fake_accounts
+
+
+class TestSearchConsoleSites:
+    async def test_returns_403_when_not_connected(
+        self, client: AsyncClient, auth_headers: dict
+    ) -> None:
+        response = await client.get(
+            "/google/search-console/sites", headers=auth_headers
+        )
+
+        assert response.status_code == 403
+
+    async def test_returns_sites_when_connected(
+        self, client: AsyncClient, auth_headers: dict, session: AsyncSession
+    ) -> None:
+        me = await client.get("/users/me", headers=auth_headers)
+        user_id = me.json()["id"]
+        await _add_google_credential(session, user_id)
+
+        fake_sites = {"siteEntry": [{"siteUrl": "https://example.com"}]}
+
+        with patch(
+            "ai_shop_helper_backend.services.google.google_get",
+            new_callable=AsyncMock,
+            return_value=fake_sites,
+        ):
+            response = await client.get(
+                "/google/search-console/sites", headers=auth_headers
+            )
+
+        assert response.status_code == 200
+        assert response.json() == fake_sites
+
+
+class TestSearchConsoleQuery:
+    async def test_returns_results_when_connected(
+        self, client: AsyncClient, auth_headers: dict, session: AsyncSession
+    ) -> None:
+        me = await client.get("/users/me", headers=auth_headers)
+        user_id = me.json()["id"]
+        await _add_google_credential(session, user_id)
+
+        fake_results = {"rows": [{"keys": ["example query"], "clicks": 10}]}
+
+        with patch(
+            "ai_shop_helper_backend.services.google.google_post",
+            new_callable=AsyncMock,
+            return_value=fake_results,
+        ):
+            response = await client.post(
+                "/google/search-console/query",
+                headers=auth_headers,
+                json={
+                    "site_url": "https://example.com",
+                    "start_date": "2024-01-01",
+                    "end_date": "2024-01-31",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == fake_results
