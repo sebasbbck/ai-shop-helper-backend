@@ -23,7 +23,9 @@ FULL_SCOPES = (
 _TOKEN_REFRESH_BUFFER_SECONDS = 60
 
 
-async def get_credentials(session: AsyncSession, user_id: UUID) -> GoogleCredential | None:
+async def get_credentials(
+    session: AsyncSession, user_id: UUID
+) -> GoogleCredential | None:
     result = await session.exec(
         select(GoogleCredential).where(GoogleCredential.user_id == user_id)
     )
@@ -86,15 +88,21 @@ async def upsert_credentials(
     return credential
 
 
-async def delete_credentials(session: AsyncSession, credential: GoogleCredential) -> None:
+async def delete_credentials(
+    session: AsyncSession, credential: GoogleCredential
+) -> None:
     await session.delete(credential)
 
 
 def _expires_at(seconds: int) -> datetime:
-    return get_datetime_utc() + timedelta(seconds=seconds - _TOKEN_REFRESH_BUFFER_SECONDS)
+    return get_datetime_utc() + timedelta(
+        seconds=seconds - _TOKEN_REFRESH_BUFFER_SECONDS
+    )
 
 
-async def _refresh_access_token(credential: GoogleCredential, session: AsyncSession) -> str:
+async def _refresh_access_token(
+    credential: GoogleCredential, session: AsyncSession
+) -> str:
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "https://oauth2.googleapis.com/token",
@@ -139,7 +147,9 @@ def build_auth_url(state: str, scopes: str = FULL_SCOPES) -> str:
         "state": state,
         "prompt": "consent",
     }
-    return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(params)
+    return "https://accounts.google.com/o/oauth2/v2/auth?" + urllib.parse.urlencode(
+        params
+    )
 
 
 async def exchange_code(code: str) -> dict:

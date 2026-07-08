@@ -1,10 +1,9 @@
 """Integration tests for the Google OAuth2 router."""
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, patch
 
 import jwt
-import pytest
 from httpx import AsyncClient
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
@@ -52,7 +51,7 @@ async def _add_google_credential(
         google_email="user@gmail.com",
         access_token="access-token",
         refresh_token="refresh-token",
-        token_expires_at=datetime.now(timezone.utc) + timedelta(hours=1),
+        token_expires_at=datetime.now(UTC) + timedelta(hours=1),
         scopes="openid email",
     )
     session.add(cred)
@@ -61,7 +60,9 @@ async def _add_google_credential(
 
 
 class TestGoogleLogin:
-    async def test_returns_auth_url_without_authentication(self, client: AsyncClient) -> None:
+    async def test_returns_auth_url_without_authentication(
+        self, client: AsyncClient
+    ) -> None:
         response = await client.get("/google/login")
 
         assert response.status_code == 200
@@ -69,7 +70,9 @@ class TestGoogleLogin:
         assert "auth_url" in data
         assert "accounts.google.com" in data["auth_url"]
 
-    async def test_login_auth_url_uses_minimal_scopes(self, client: AsyncClient) -> None:
+    async def test_login_auth_url_uses_minimal_scopes(
+        self, client: AsyncClient
+    ) -> None:
         response = await client.get("/google/login")
 
         auth_url = response.json()["auth_url"]
@@ -111,20 +114,38 @@ class TestGoogleCallbackConnect:
     async def test_conflict_when_google_id_linked_to_another_user(
         self, client: AsyncClient, session: AsyncSession
     ) -> None:
-        user1 = User(email="user1@example.com", name="User 1", hashed_password=hash_password("pass"))
-        user2 = User(email="user2@example.com", name="User 2", hashed_password=hash_password("pass"))
+        user1 = User(
+            email="user1@example.com",
+            name="User 1",
+            hashed_password=hash_password("pass"),
+        )
+        user2 = User(
+            email="user2@example.com",
+            name="User 2",
+            hashed_password=hash_password("pass"),
+        )
         session.add(user1)
         session.add(user2)
         await session.flush()
 
         await _add_google_credential(session, user1.id, google_id="shared-google-sub")
 
-        token_data, userinfo = _google_token_data(google_id="shared-google-sub", email="shared@gmail.com")
+        token_data, userinfo = _google_token_data(
+            google_id="shared-google-sub", email="shared@gmail.com"
+        )
         state = _state_token(mode="connect", user_id=user2.id)
 
         with (
-            patch("ai_shop_helper_backend.services.google.exchange_code", new_callable=AsyncMock, return_value=token_data),
-            patch("ai_shop_helper_backend.services.google.get_userinfo", new_callable=AsyncMock, return_value=userinfo),
+            patch(
+                "ai_shop_helper_backend.services.google.exchange_code",
+                new_callable=AsyncMock,
+                return_value=token_data,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.google.get_userinfo",
+                new_callable=AsyncMock,
+                return_value=userinfo,
+            ),
         ):
             response = await client.get(
                 f"/google/callback?code=authcode&state={state}",
@@ -145,8 +166,16 @@ class TestGoogleCallbackLogin:
         state = _state_token(mode="login")
 
         with (
-            patch("ai_shop_helper_backend.services.google.exchange_code", new_callable=AsyncMock, return_value=token_data),
-            patch("ai_shop_helper_backend.services.google.get_userinfo", new_callable=AsyncMock, return_value=userinfo),
+            patch(
+                "ai_shop_helper_backend.services.google.exchange_code",
+                new_callable=AsyncMock,
+                return_value=token_data,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.google.get_userinfo",
+                new_callable=AsyncMock,
+                return_value=userinfo,
+            ),
         ):
             response = await client.get(
                 f"/google/callback?code=authcode&state={state}",
@@ -156,7 +185,9 @@ class TestGoogleCallbackLogin:
         assert response.status_code == 200
         assert "access_token" in response.json()
 
-        result = await session.exec(select(User).where(User.email == "newuser@gmail.com"))
+        result = await session.exec(
+            select(User).where(User.email == "newuser@gmail.com")
+        )
         user = result.first()
         assert user is not None
         assert user.name == "New Google User"
@@ -164,17 +195,31 @@ class TestGoogleCallbackLogin:
     async def test_returns_token_for_existing_google_user(
         self, client: AsyncClient, session: AsyncSession
     ) -> None:
-        user = User(email="existing@gmail.com", name="Existing", hashed_password=hash_password("pass"))
+        user = User(
+            email="existing@gmail.com",
+            name="Existing",
+            hashed_password=hash_password("pass"),
+        )
         session.add(user)
         await session.flush()
         await _add_google_credential(session, user.id, google_id="existing-sub")
 
-        token_data, userinfo = _google_token_data(google_id="existing-sub", email="existing@gmail.com")
+        token_data, userinfo = _google_token_data(
+            google_id="existing-sub", email="existing@gmail.com"
+        )
         state = _state_token(mode="login")
 
         with (
-            patch("ai_shop_helper_backend.services.google.exchange_code", new_callable=AsyncMock, return_value=token_data),
-            patch("ai_shop_helper_backend.services.google.get_userinfo", new_callable=AsyncMock, return_value=userinfo),
+            patch(
+                "ai_shop_helper_backend.services.google.exchange_code",
+                new_callable=AsyncMock,
+                return_value=token_data,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.google.get_userinfo",
+                new_callable=AsyncMock,
+                return_value=userinfo,
+            ),
         ):
             response = await client.get(
                 f"/google/callback?code=authcode&state={state}",
@@ -184,16 +229,24 @@ class TestGoogleCallbackLogin:
         assert response.status_code == 200
         assert "access_token" in response.json()
 
-    async def test_rejects_unverified_email(
-        self, client: AsyncClient
-    ) -> None:
-        token_data, userinfo = _google_token_data(google_id="unverified-sub", email="unverified@gmail.com")
+    async def test_rejects_unverified_email(self, client: AsyncClient) -> None:
+        token_data, userinfo = _google_token_data(
+            google_id="unverified-sub", email="unverified@gmail.com"
+        )
         userinfo["email_verified"] = False
         state = _state_token(mode="login")
 
         with (
-            patch("ai_shop_helper_backend.services.google.exchange_code", new_callable=AsyncMock, return_value=token_data),
-            patch("ai_shop_helper_backend.services.google.get_userinfo", new_callable=AsyncMock, return_value=userinfo),
+            patch(
+                "ai_shop_helper_backend.services.google.exchange_code",
+                new_callable=AsyncMock,
+                return_value=token_data,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.google.get_userinfo",
+                new_callable=AsyncMock,
+                return_value=userinfo,
+            ),
         ):
             response = await client.get(
                 f"/google/callback?code=authcode&state={state}",

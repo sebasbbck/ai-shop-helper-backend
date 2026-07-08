@@ -46,7 +46,9 @@ def _create_state_token(mode: str, user_id: UUID | None = None) -> str:
 
 def _decode_state_token(state: str) -> dict:
     try:
-        return jwt.decode(state, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM])
+        return jwt.decode(
+            state, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM]
+        )
     except (jwt.PyJWTError, ValueError, KeyError):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -65,10 +67,14 @@ def _set_state_cookie(response: Response, state: str) -> None:
     )
 
 
-async def _issue_tokens(session: AsyncSession, response: Response, user_id: UUID) -> Token:
+async def _issue_tokens(
+    session: AsyncSession, response: Response, user_id: UUID
+) -> Token:
     user = await users_svc.get_user_by_id(session, user_id)
     if user is None:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
 
     refresh_token_value = _security.generate_refresh_token()
     session.add(
@@ -93,16 +99,21 @@ async def _issue_tokens(session: AsyncSession, response: Response, user_id: UUID
 
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
+
 @router.get("/login", response_model=GoogleConnectResponse)
 async def login_with_google(response: Response) -> GoogleConnectResponse:
     """Generate the Google OAuth URL for login/registration (no existing account needed)."""
     state = _create_state_token(mode="login")
     _set_state_cookie(response, state)
-    return GoogleConnectResponse(auth_url=google_svc.build_auth_url(state, scopes=google_svc.LOGIN_SCOPES))
+    return GoogleConnectResponse(
+        auth_url=google_svc.build_auth_url(state, scopes=google_svc.LOGIN_SCOPES)
+    )
 
 
 @router.get("/connect", response_model=GoogleConnectResponse)
-async def connect_google(current_user: CurrentUser, response: Response) -> GoogleConnectResponse:
+async def connect_google(
+    current_user: CurrentUser, response: Response
+) -> GoogleConnectResponse:
     """Generate the Google OAuth URL to link Google to an existing account."""
     state = _create_state_token(mode="connect", user_id=current_user.id)
     _set_state_cookie(response, state)
@@ -223,7 +234,9 @@ async def google_callback(
 
 
 @router.get("/status", response_model=GoogleStatusResponse)
-async def google_status(current_user: CurrentUser, session: SessionDep) -> GoogleStatusResponse:
+async def google_status(
+    current_user: CurrentUser, session: SessionDep
+) -> GoogleStatusResponse:
     """Check whether the current user has a connected Google account."""
     credential = await google_svc.get_credentials(session, current_user.id)
     if not credential:
@@ -249,6 +262,7 @@ async def disconnect_google(current_user: CurrentUser, session: SessionDep) -> N
 
 
 # ── GA4 ───────────────────────────────────────────────────────────────────────
+
 
 @router.get("/ga4/accounts")
 async def ga4_accounts(current_user: CurrentUser, session: SessionDep) -> dict:
@@ -318,6 +332,7 @@ async def ga4_realtime(
 
 # ── Search Console ─────────────────────────────────────────────────────────────
 
+
 @router.get("/search-console/sites")
 async def search_console_sites(current_user: CurrentUser, session: SessionDep) -> dict:
     """List all Search Console properties accessible by the connected Google account."""
@@ -349,6 +364,7 @@ async def search_console_query(
 
 
 # ── Internal helpers ───────────────────────────────────────────────────────────
+
 
 async def _get_token(session: SessionDep, user_id: UUID) -> str:
     try:

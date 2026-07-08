@@ -31,7 +31,9 @@ class TestRevokeGoogleToken:
     async def test_posts_to_revoke_url(self) -> None:
         mock_post = AsyncMock(return_value=MagicMock())
 
-        with patch("ai_shop_helper_backend.services.google.httpx.AsyncClient") as mock_client:
+        with patch(
+            "ai_shop_helper_backend.services.google.httpx.AsyncClient"
+        ) as mock_client:
             mock_client.return_value.__aenter__.return_value.post = mock_post
             await revoke_google_token("some-refresh-token")
 
@@ -40,7 +42,9 @@ class TestRevokeGoogleToken:
         assert call_args[1]["params"]["token"] == "some-refresh-token"
 
     async def test_does_not_raise_on_network_error(self) -> None:
-        with patch("ai_shop_helper_backend.services.google.httpx.AsyncClient") as mock_client:
+        with patch(
+            "ai_shop_helper_backend.services.google.httpx.AsyncClient"
+        ) as mock_client:
             mock_client.return_value.__aenter__.return_value.post = AsyncMock(
                 side_effect=Exception("Network error")
             )

@@ -20,7 +20,11 @@ class GoogleCallbackSuccess(SQLModel):
 
 class GA4ReportRequest(SQLModel):
     date_ranges: list[dict] = [{"startDate": "30daysAgo", "endDate": "today"}]
-    metrics: list[dict] = [{"name": "sessions"}, {"name": "activeUsers"}, {"name": "screenPageViews"}]
+    metrics: list[dict] = [
+        {"name": "sessions"},
+        {"name": "activeUsers"},
+        {"name": "screenPageViews"},
+    ]
     dimensions: list[dict] = []
     limit: int = 10
 
