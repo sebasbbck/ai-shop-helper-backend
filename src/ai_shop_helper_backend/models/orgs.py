@@ -7,4 +7,5 @@ class Org(UUIDMixin, AuditMixin, SQLModel, table=True):
     """Organization model representing an organization in the system."""
 
     name: str = Field(unique=True, max_length=255)
-    credits: int = Field(default=0, ge=0)
+    subscription_credits: int = Field(default=0, ge=0)
+    purchased_credits: int = Field(default=0, ge=0)

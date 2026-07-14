@@ -90,7 +90,6 @@ async def create_org_with_owner(
 
     org = Org(
         name=org_in.name,
-        credits=0,
         created_by=user_id,
         updated_by=user_id,
     )
@@ -105,6 +104,10 @@ async def create_org_with_owner(
         role_id=owner_role.id,
     )
     await org_users.create_org_user(session, org_user_in, user_id)
+
+    from ai_shop_helper_backend.core.constants import FREE_TIER_CREDITS
+    from ai_shop_helper_backend.services import billing
+    await billing.grant_purchased(session, org, FREE_TIER_CREDITS, reason="signup_bonus", meta={"free": True})
 
     return org
 

@@ -12,11 +12,36 @@ from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
 from ai_shop_helper_backend.core.utils import get_datetime_utc
 from ai_shop_helper_backend.models.auth import RefreshToken
-from ai_shop_helper_backend.schemas.auth import Token
+from ai_shop_helper_backend.schemas.auth import (
+    ForgotPasswordRequest,
+    MessageResponse,
+    ResendVerificationRequest,
+    ResetPasswordRequest,
+    Token,
+    VerifyEmailRequest,
+)
 from ai_shop_helper_backend.schemas.users import UserCreate, UserPublic
-from ai_shop_helper_backend.services import users
+from ai_shop_helper_backend.services import auth_email, users
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+def _email_locale(request: Request) -> str:
+    """Resolve the preferred email locale from request context.
+
+    Args:
+        request (Request): The incoming HTTP request.
+
+    Returns:
+        str: The resolved locale code ("en" or "es").
+    """
+    cookie = request.cookies.get("NEXT_LOCALE")
+    if cookie in ("en", "es"):
+        return cookie
+    accept = request.headers.get("accept-language", "").lower()
+    if accept.startswith("en"):
+        return "en"
+    return "es"
 
 
 @router.post(
@@ -24,12 +49,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 )
 async def register(
     user_in: UserCreate,
+    request: Request,
     session: SessionDep,
 ) -> UserPublic:
     """Register a new user.
 
     Args:
         user_in (UserCreate): The user data.
+        request (Request): The incoming HTTP request.
         session (AsyncSession): The database session.
 
     Returns:
@@ -43,7 +70,10 @@ async def register(
             status_code=status.HTTP_409_CONFLICT,
             detail="Email already registered",
         )
-    return UserPublic.model_validate(await users.create_user(session, user_in))
+    user = await users.create_user(session, user_in)
+    await session.flush()
+    await auth_email.start_verification(session, user, _email_locale(request))
+    return UserPublic.model_validate(user)
 
 
 @router.post("/login", response_model=Token)
@@ -70,6 +100,11 @@ async def login(
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
+        )
+    if not user.email_verified:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="email_not_verified",
         )
     return await _issue_tokens(session, response, user.id)
 
@@ -101,9 +136,18 @@ async def refresh(
     )
     token_record = result.first()
     if not token_record:
+        cleared = Response()
+        cleared.delete_cookie(
+            key=settings.REFRESH_TOKEN_COOKIE,
+            path=settings.refresh_token_path,
+            httponly=True,
+            secure=True,
+            samesite="strict",
+        )
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired refresh token",
+            headers={"set-cookie": cleared.headers["set-cookie"]},
         )
     await session.delete(token_record)
     return await _issue_tokens(session, response, token_record.user_id)
@@ -135,6 +179,92 @@ async def logout(
         secure=True,
         samesite="strict",
     )
+
+
+@router.post("/verify-email", response_model=MessageResponse)
+async def verify_email(
+    body: VerifyEmailRequest,
+    session: SessionDep,
+) -> MessageResponse:
+    """Verify a user's email address using a token.
+
+    Args:
+        body (VerifyEmailRequest): The verification token.
+        session (AsyncSession): The database session.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if the token is invalid or expired.
+    """
+    await auth_email.verify(session, body.token)
+    return MessageResponse(message="Email verified")
+
+
+@router.post("/resend-verification", response_model=MessageResponse)
+async def resend_verification(
+    body: ResendVerificationRequest,
+    request: Request,
+    session: SessionDep,
+) -> MessageResponse:
+    """Resend a verification email — enumeration-safe, always returns the same response.
+
+    Args:
+        body (ResendVerificationRequest): The email address to resend to.
+        request (Request): The incoming HTTP request.
+        session (AsyncSession): The database session.
+
+    Returns:
+        MessageResponse: Generic confirmation that does not reveal account existence.
+    """
+    await auth_email.resend_verification(session, body.email, _email_locale(request))
+    return MessageResponse(
+        message="If an account exists and is unverified, a verification email has been sent"
+    )
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    session: SessionDep,
+) -> MessageResponse:
+    """Request a password reset email — enumeration-safe, always returns the same response.
+
+    Args:
+        body (ForgotPasswordRequest): The email address to send the reset link to.
+        request (Request): The incoming HTTP request.
+        session (AsyncSession): The database session.
+
+    Returns:
+        MessageResponse: Generic confirmation that does not reveal account existence.
+    """
+    await auth_email.start_password_reset(session, body.email, _email_locale(request))
+    return MessageResponse(
+        message="If an account exists, a password reset email has been sent"
+    )
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+async def reset_password(
+    body: ResetPasswordRequest,
+    session: SessionDep,
+) -> MessageResponse:
+    """Reset a user's password using a token.
+
+    Args:
+        body (ResetPasswordRequest): The reset token and new password.
+        session (AsyncSession): The database session.
+
+    Returns:
+        MessageResponse: Confirmation message.
+
+    Raises:
+        HTTPException: 400 if the token is invalid or expired.
+    """
+    await auth_email.reset_password(session, body.token, body.new_password)
+    return MessageResponse(message="Password updated")
 
 
 async def _issue_tokens(

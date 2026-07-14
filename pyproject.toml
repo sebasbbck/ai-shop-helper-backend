@@ -9,12 +9,14 @@ readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
     "alembic>=1.18.4",
+    "cryptography>=49.0.0",
     "fastapi[standard]>=0.128.0",
     "httpx>=0.28.1",
     "psycopg[binary]>=3.3.3",
     "pwdlib[argon2]>=0.3.0",
     "pyjwt>=2.11.0",
     "sqlmodel>=0.0.37",
+    "stripe[async]>=15.3.0",
 ]
 
 [build-system]
@@ -58,6 +60,10 @@ env = [
     "DB_PASSWORD=postgres",
     "DB_NAME=testdb",
     "N8N_URL=http://localhost:5678",
+    "BACKEND_URL=http://localhost:8080/api/v1",
+    "CRYPTOGRAPHIC_KEY=aAApUNaqnnOod-yiUqdHJi0WQhetffwN_NbEorz9Xmo=",
+    "STRIPE_SECRET_KEY=sk_test_placeholder",
+    "STRIPE_WEBHOOK_SECRET=whsec_test_placeholder",
     "TESTCONTAINERS_RYUK_DISABLED=true",
 ]
 

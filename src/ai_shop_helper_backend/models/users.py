@@ -12,3 +12,4 @@ class User(TimestampMixin, UUIDMixin, SQLModel, table=True):
     is_superuser: bool = False
     is_active: bool = True
     hashed_password: str
+    email_verified: bool = Field(default=False)

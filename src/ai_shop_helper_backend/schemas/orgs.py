@@ -17,7 +17,6 @@ class OrgUpdate(SQLModel):
     """Schema for updating an organization."""
 
     name: str | None = Field(default=None, min_length=1, max_length=255)
-    credits: int | None = Field(default=None, ge=0)
 
 
 class OrgPublic(SQLModel):
@@ -25,7 +24,8 @@ class OrgPublic(SQLModel):
 
     id: UUID
     name: str
-    credits: int
+    subscription_credits: int
+    purchased_credits: int
     created_at: datetime
     updated_at: datetime
     created_by: UUID
