@@ -13,6 +13,24 @@ class AccessLevel:
 CURRENCY = "eur"
 FREE_TIER_CREDITS = 50
 
+
+@dataclass(frozen=True)
+class ProjectContextField:
+    """A project-level context field, shared by every agent run on the project."""
+
+    key: str
+    input_type: str
+    required: bool
+    label_i18n_key: str
+
+
+PROJECT_CONTEXT_FIELDS: list[ProjectContextField] = [
+    ProjectContextField("business", "textarea", True, "ProjectContext.business.label"),
+    ProjectContextField("audience", "textarea", True, "ProjectContext.audience.label"),
+]
+
+PROJECT_CONTEXT_KEYS = {f.key for f in PROJECT_CONTEXT_FIELDS}
+
 TOPUP_LOOKUP_KEY = "aish_topup"
 TOPUP_MIN_AMOUNT = 500
 TOPUP_MAX_AMOUNT = 50000

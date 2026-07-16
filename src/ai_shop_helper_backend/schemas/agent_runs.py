@@ -35,17 +35,20 @@ class AgentSchemaResponse(BaseModel):
     steps: list[AgentStepSchema]
 
 
-class ProjectAgentInputItem(BaseModel):
-    input_key: str
-    value: str
+class ProjectContextFieldSchema(BaseModel):
+    key: str
+    input_type: str
+    required: bool
+    label_i18n_key: str
 
 
-class ProjectAgentInputsResponse(BaseModel):
+class ProjectContextResponse(BaseModel):
     project_id: UUID
-    inputs: list[ProjectAgentInputItem]
+    fields: list[ProjectContextFieldSchema]
+    values: dict[str, str]
 
 
-class ProjectAgentInputsPut(BaseModel):
+class ProjectContextPut(BaseModel):
     values: dict[str, str]
 
 

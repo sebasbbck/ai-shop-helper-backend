@@ -17,6 +17,10 @@ from ai_shop_helper_backend.models.agent_runs import (
     RunStatus,
 )
 from ai_shop_helper_backend.connections.registry import get_connection_provider
+from ai_shop_helper_backend.core.constants import (
+    PROJECT_CONTEXT_FIELDS,
+    PROJECT_CONTEXT_KEYS,
+)
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.runners.base import StartResult
 from ai_shop_helper_backend.runners.registry import get_runner
@@ -131,6 +135,27 @@ def _build_callback_url(run_id: UUID, step_id: UUID) -> str:
     )
 
 
+async def _debit_step(session: AsyncSession, run: AgentRun, step: AgentStep) -> None:
+    if step.token_cost <= 0:
+        return
+    org = await _get_run_org(session, run)
+    if org is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
+    from_sub, from_pur = await billing.debit_credits(
+        session,
+        org,
+        step.token_cost,
+        reason=billing.REASON_AGENT_RUN,
+        meta={"run_id": str(run.id), "step": step.slug},
+    )
+    run.credits_debited += step.token_cost
+    run.debited_sub += from_sub
+    run.debited_purchased += from_pur
+    session.add(run)
+
+
 async def _start_step(
     session: AsyncSession,
     run: AgentRun,
@@ -138,6 +163,8 @@ async def _start_step(
     run_step: AgentRunStep,
     run_inputs_so_far: dict[str, str],
 ) -> None:
+    await _debit_step(session, run, step)
+
     prior_run_steps_result = await session.exec(
         select(AgentRunStep)
         .where(AgentRunStep.run_id == run.id)
@@ -268,9 +295,13 @@ async def get_agent_schema(session: AsyncSession, agent_id: UUID) -> dict:
     for ai in inputs:
         inputs_by_step.setdefault(ai.step_id, []).append(ai)
 
+    agent_level_inputs = inputs_by_step.get(None, [])
+
     result_steps = []
-    for step in steps:
-        step_inputs = inputs_by_step.get(step.id, [])
+    for index, step in enumerate(steps):
+        step_inputs = list(inputs_by_step.get(step.id, []))
+        if index == 0:
+            step_inputs = agent_level_inputs + step_inputs
         result_steps.append({"step": step, "inputs": step_inputs})
 
     return {"agent_id": agent_id, "steps": result_steps}
@@ -318,6 +349,51 @@ async def set_project_agent_inputs(
     return rows
 
 
+async def _validate_run_preconditions(
+    session: AsyncSession,
+    project,
+    agent_id: UUID,
+    first_step: AgentStep,
+    run_inputs: dict[str, str],
+) -> None:
+    project_type = await project_types_service.get_project_type_by_id(
+        session, project.project_type_id
+    )
+    if project_type and project_type.connection_type:
+        connection = await conn_service.get_connection_by_project(session, project.id)
+        if not connection:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT, detail="connection_required"
+            )
+
+    context_values = await _get_project_agent_inputs_map(session, project.id)
+    missing: list[str] = [
+        f.key
+        for f in PROJECT_CONTEXT_FIELDS
+        if f.required and not context_values.get(f.key)
+    ]
+    if missing:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"missing_context:{','.join(missing)}",
+        )
+
+    inputs = await _get_inputs_for_agent(session, agent_id)
+    run_missing: list[str] = [
+        ai.key
+        for ai in inputs
+        if ai.required
+        and ai.scope == InputScope.run
+        and ai.step_id in (first_step.id, None)
+        and not run_inputs.get(ai.key)
+    ]
+    if run_missing:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"missing_inputs:{','.join(run_missing)}",
+        )
+
+
 async def create_run(
     session: AsyncSession,
     project_id: UUID,
@@ -336,29 +412,17 @@ async def create_run(
             detail="Agent has no steps",
         )
 
-    total_cost = sum(s.token_cost for s in steps)
-
-    org = await get_org_by_id(session, project.org_id)
-    if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
-
-    from_sub, from_pur = await billing.debit_credits(
-        session,
-        org,
-        total_cost,
-        reason=billing.REASON_AGENT_RUN,
-        meta={"project_id": str(project_id), "agent_id": str(agent_id)},
-    )
-
     first_step = steps[0]
+    await _validate_run_preconditions(session, project, agent_id, first_step, run_inputs)
+
     run = AgentRun(
         project_id=project_id,
         agent_id=agent_id,
         status=RunStatus.running,
         current_step_order=first_step.order,
-        credits_debited=total_cost,
-        debited_sub=from_sub,
-        debited_purchased=from_pur,
+        credits_debited=0,
+        debited_sub=0,
+        debited_purchased=0,
         created_by=author.id,
     )
     session.add(run)

@@ -110,10 +110,7 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
         session.add(step_generate)
         await session.flush()
 
-    project_inputs: list[tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]] = [
-        ("business", InputType.textarea, 1, "AgentInputs.business.label", None, None, None),
-        ("audience", InputType.textarea, 2, "AgentInputs.audience.label", None, None, None),
-    ]
+    project_inputs: list[tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]] = []
     run_inputs: list[tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]] = [
         (
             "chosen_title",

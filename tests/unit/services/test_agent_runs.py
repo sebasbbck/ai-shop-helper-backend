@@ -181,6 +181,11 @@ class TestCreateRun:
                 return_value={},
             ),
             patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
                 return_value=MagicMock(
                     start=AsyncMock(return_value=accepted_result)
@@ -262,6 +267,11 @@ class TestCreateRun:
                 return_value={"url": "https://wp.example", "auth_token": "SECRET"},
             ),
             patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
                 return_value=runner_mock,
             ),
@@ -319,6 +329,11 @@ class TestCreateRun:
                 "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
                 new_callable=AsyncMock,
                 return_value=[step1],
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
@@ -395,6 +410,11 @@ class TestCreateRun:
                 return_value={},
             ),
             patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
                 return_value=MagicMock(
                     start=AsyncMock(return_value=rejected_result)
@@ -454,6 +474,11 @@ class TestRecordStepResult:
                 "ai_shop_helper_backend.services.agent_runs._get_connection_injected_inputs",
                 new_callable=AsyncMock,
                 return_value={},
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
         ):
             exec_results = [
@@ -603,6 +628,11 @@ class TestRecordStepResult:
                 new_callable=AsyncMock,
                 return_value={},
             ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
         ):
             flush_count = 0
 
@@ -684,6 +714,16 @@ class TestSubmitRunInputs:
                 "ai_shop_helper_backend.services.agent_runs._get_connection_injected_inputs",
                 new_callable=AsyncMock,
                 return_value={},
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._debit_step",
+                new_callable=AsyncMock,
+                return_value=None,
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
@@ -809,6 +849,11 @@ class TestSyncOutput:
                 return_value={},
             ),
             patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+            patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
                 return_value=MagicMock(start=AsyncMock(return_value=sync_result)),
             ),
@@ -835,3 +880,254 @@ class TestSyncOutput:
         assert any(rs.output == sync_data for rs in added_run_steps)
         assert any(rs.status == RunStatus.success for rs in added_run_steps)
         assert any(r.status == RunStatus.success for r in added_runs)
+
+
+class TestRunPreconditions:
+    def _input(self, key, scope, required=True, step_id=None):
+        return AgentInput(
+            agent_id=uuid.uuid4(),
+            step_id=step_id,
+            key=key,
+            input_type=InputType.textarea,
+            options=None,
+            options_from_step_slug=None,
+            scope=scope,
+            order=1,
+            required=required,
+            label_i18n_key=f"AgentInputs.{key}.label",
+        )
+
+    async def test_connection_required_when_missing(
+        self, mock_session: AsyncMock
+    ) -> None:
+        from fastapi import HTTPException
+
+        from ai_shop_helper_backend.services.agent_runs import (
+            _validate_run_preconditions,
+        )
+
+        project = MagicMock(id=uuid.uuid4(), project_type_id=uuid.uuid4())
+        agent_id = uuid.uuid4()
+        first_step = _make_step(agent_id, order=1)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                new_callable=AsyncMock,
+                return_value=MagicMock(connection_type="wordpress"),
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.conn_service.get_connection_by_project",
+                new_callable=AsyncMock,
+                return_value=None,
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc:
+                await _validate_run_preconditions(
+                    mock_session, project, agent_id, first_step, {}
+                )
+        assert exc.value.status_code == 409
+        assert exc.value.detail == "connection_required"
+
+    async def test_missing_required_project_context(
+        self, mock_session: AsyncMock
+    ) -> None:
+        from fastapi import HTTPException
+
+        from ai_shop_helper_backend.services.agent_runs import (
+            _validate_run_preconditions,
+        )
+
+        project = MagicMock(id=uuid.uuid4(), project_type_id=uuid.uuid4())
+        agent_id = uuid.uuid4()
+        first_step = _make_step(agent_id, order=1)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                new_callable=AsyncMock,
+                return_value=MagicMock(connection_type=None),
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_project_agent_inputs_map",
+                new_callable=AsyncMock,
+                return_value={},
+            ),
+        ):
+            with pytest.raises(HTTPException) as exc:
+                await _validate_run_preconditions(
+                    mock_session, project, agent_id, first_step, {}
+                )
+        assert exc.value.status_code == 409
+        assert exc.value.detail.startswith("missing_context:")
+        assert "business" in exc.value.detail
+        assert "audience" in exc.value.detail
+
+    async def test_passes_when_satisfied(self, mock_session: AsyncMock) -> None:
+        from ai_shop_helper_backend.services.agent_runs import (
+            _validate_run_preconditions,
+        )
+
+        project = MagicMock(id=uuid.uuid4(), project_type_id=uuid.uuid4())
+        agent_id = uuid.uuid4()
+        first_step = _make_step(agent_id, order=1)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                new_callable=AsyncMock,
+                return_value=MagicMock(connection_type=None),
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_inputs_for_agent",
+                new_callable=AsyncMock,
+                return_value=[],
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_project_agent_inputs_map",
+                new_callable=AsyncMock,
+                return_value={"business": "shoes", "audience": "runners"},
+            ),
+        ):
+            await _validate_run_preconditions(
+                mock_session, project, agent_id, first_step, {}
+            )
+
+    async def test_create_run_rejects_before_debit(
+        self,
+        mock_session: AsyncMock,
+        make_user: Callable[..., User],
+    ) -> None:
+        from fastapi import HTTPException
+
+        from ai_shop_helper_backend.services.agent_runs import create_run
+
+        project_id = uuid.uuid4()
+        agent_id = uuid.uuid4()
+        user = make_user()
+        step1 = _make_step(agent_id, order=1, token_cost=10)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.get_project_by_id",
+                new_callable=AsyncMock,
+                return_value=MagicMock(project_type_id=uuid.uuid4()),
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
+                new_callable=AsyncMock,
+                return_value=[step1],
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
+                new_callable=AsyncMock,
+                side_effect=HTTPException(status_code=409, detail="connection_required"),
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
+                new_callable=AsyncMock,
+            ) as mock_debit,
+        ):
+            with pytest.raises(HTTPException) as exc:
+                await create_run(mock_session, project_id, agent_id, {}, user)
+
+        assert exc.value.status_code == 409
+        mock_debit.assert_not_awaited()
+
+
+class TestPerStepDebit:
+    async def test_zero_cost_step_no_debit(self, mock_session: AsyncMock) -> None:
+        from ai_shop_helper_backend.services.agent_runs import _debit_step
+
+        run = _make_run(uuid.uuid4(), uuid.uuid4())
+        run.credits_debited = 0
+        step = _make_step(run.agent_id, order=1, token_cost=0)
+
+        with patch(
+            "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
+            new_callable=AsyncMock,
+        ) as mock_debit:
+            await _debit_step(mock_session, run, step)
+
+        mock_debit.assert_not_awaited()
+        assert run.credits_debited == 0
+
+    async def test_step_debits_and_accumulates_split(
+        self, mock_session: AsyncMock, make_org: Callable[..., Org]
+    ) -> None:
+        from ai_shop_helper_backend.services.agent_runs import _debit_step
+
+        org = make_org(subscription_credits=100, purchased_credits=100)
+        run = _make_run(uuid.uuid4(), uuid.uuid4())
+        run.credits_debited = 0
+        run.debited_sub = 0
+        run.debited_purchased = 0
+        step = _make_step(run.agent_id, order=2, token_cost=5)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_run_org",
+                new_callable=AsyncMock,
+                return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
+                new_callable=AsyncMock,
+                return_value=(3, 2),
+            ) as mock_debit,
+        ):
+            await _debit_step(mock_session, run, step)
+
+        mock_debit.assert_awaited_once()
+        assert mock_debit.call_args.args[2] == 5
+        assert run.credits_debited == 5
+        assert run.debited_sub == 3
+        assert run.debited_purchased == 2
+
+
+class TestGetAgentSchema:
+    async def test_agent_level_inputs_surface_on_first_step(
+        self, mock_session: AsyncMock
+    ) -> None:
+        from ai_shop_helper_backend.services.agent_runs import get_agent_schema
+
+        agent_id = uuid.uuid4()
+        step1 = _make_step(agent_id, order=1, slug="titles")
+        step2 = _make_step(agent_id, order=2, slug="generate")
+
+        def _inp(key, scope, step_id):
+            return AgentInput(
+                agent_id=agent_id,
+                step_id=step_id,
+                key=key,
+                input_type=InputType.textarea,
+                options=None,
+                options_from_step_slug=None,
+                scope=scope,
+                order=1,
+                required=True,
+                label_i18n_key=f"AgentInputs.{key}.label",
+            )
+
+        business = _inp("business", InputScope.project, None)
+        chosen = _inp("chosen_title", InputScope.run, step2.id)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
+                new_callable=AsyncMock,
+                return_value=[step1, step2],
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_inputs_for_agent",
+                new_callable=AsyncMock,
+                return_value=[business, chosen],
+            ),
+        ):
+            result = await get_agent_schema(mock_session, agent_id)
+
+        step1_keys = [i.key for i in result["steps"][0]["inputs"]]
+        step2_keys = [i.key for i in result["steps"][1]["inputs"]]
+        assert "business" in step1_keys
+        assert "chosen_title" in step2_keys
+        assert "business" not in step2_keys

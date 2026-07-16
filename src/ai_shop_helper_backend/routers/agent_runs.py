@@ -3,6 +3,10 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, Query, status
 
 from ai_shop_helper_backend.core.callback_token import verify_callback_token
+from ai_shop_helper_backend.core.constants import (
+    PROJECT_CONTEXT_FIELDS,
+    PROJECT_CONTEXT_KEYS,
+)
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
 from ai_shop_helper_backend.schemas.agent_runs import (
     AgentRunPublic,
@@ -13,9 +17,9 @@ from ai_shop_helper_backend.schemas.agent_runs import (
     CallbackBody,
     CallbackResponse,
     CreateRunBody,
-    ProjectAgentInputItem,
-    ProjectAgentInputsResponse,
-    ProjectAgentInputsPut,
+    ProjectContextFieldSchema,
+    ProjectContextPut,
+    ProjectContextResponse,
     SubmitRunInputsBody,
 )
 from ai_shop_helper_backend.services import agent_runs as svc
@@ -72,33 +76,49 @@ async def get_agent_schema(
     return AgentSchemaResponse(agent_id=agent_id, steps=steps_out)
 
 
-@router.get("/projects/{project_id}/agent-inputs", response_model=ProjectAgentInputsResponse)
-async def get_project_agent_inputs(
+def _context_fields() -> list[ProjectContextFieldSchema]:
+    return [
+        ProjectContextFieldSchema(
+            key=f.key,
+            input_type=f.input_type,
+            required=f.required,
+            label_i18n_key=f.label_i18n_key,
+        )
+        for f in PROJECT_CONTEXT_FIELDS
+    ]
+
+
+@router.get("/projects/{project_id}/context", response_model=ProjectContextResponse)
+async def get_project_context(
     project_id: UUID,
     current_user: CurrentUser,
     session: SessionDep,
-) -> ProjectAgentInputsResponse:
+) -> ProjectContextResponse:
     await _require_project_member(session, current_user, project_id)
     rows = await svc.get_project_agent_inputs(session, project_id)
-    return ProjectAgentInputsResponse(
-        project_id=project_id,
-        inputs=[ProjectAgentInputItem(input_key=r.input_key, value=r.value) for r in rows],
+    values = {r.input_key: r.value for r in rows if r.input_key in PROJECT_CONTEXT_KEYS}
+    return ProjectContextResponse(
+        project_id=project_id, fields=_context_fields(), values=values
     )
 
 
-@router.put("/projects/{project_id}/agent-inputs", response_model=ProjectAgentInputsResponse)
-async def put_project_agent_inputs(
+@router.put("/projects/{project_id}/context", response_model=ProjectContextResponse)
+async def put_project_context(
     project_id: UUID,
-    body: ProjectAgentInputsPut,
+    body: ProjectContextPut,
     current_user: CurrentUser,
     session: SessionDep,
-) -> ProjectAgentInputsResponse:
+) -> ProjectContextResponse:
     await _require_project_member(session, current_user, project_id)
-    rows = await svc.set_project_agent_inputs(session, project_id, body.values, current_user.id)
+    accepted = {
+        k: v for k, v in body.values.items() if k in PROJECT_CONTEXT_KEYS
+    }
+    await svc.set_project_agent_inputs(session, project_id, accepted, current_user.id)
     await session.commit()
-    return ProjectAgentInputsResponse(
-        project_id=project_id,
-        inputs=[ProjectAgentInputItem(input_key=r.input_key, value=r.value) for r in rows],
+    rows = await svc.get_project_agent_inputs(session, project_id)
+    values = {r.input_key: r.value for r in rows if r.input_key in PROJECT_CONTEXT_KEYS}
+    return ProjectContextResponse(
+        project_id=project_id, fields=_context_fields(), values=values
     )
 
 
