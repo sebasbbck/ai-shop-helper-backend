@@ -5,7 +5,7 @@ Revises: 60ef5c669a21
 Create Date: 2026-06-29 07:30:00.000000
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlmodel
@@ -24,9 +24,17 @@ def upgrade() -> None:
         sa.Column("updated_at", sa.DateTime(), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("project_id", sa.Uuid(), nullable=False),
-        sa.Column("site_url", sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=False),
-        sa.Column("username", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
-        sa.Column("password_enc", sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=False),
+        sa.Column(
+            "site_url", sqlmodel.sql.sqltypes.AutoString(length=2048), nullable=False
+        ),
+        sa.Column(
+            "username", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
+        ),
+        sa.Column(
+            "password_enc",
+            sqlmodel.sql.sqltypes.AutoString(length=2048),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["project_id"], ["project.id"]),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("project_id"),
@@ -41,7 +49,9 @@ def upgrade() -> None:
     op.create_table(
         "wordpresstoken",
         sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("token", sqlmodel.sql.sqltypes.AutoString(length=128), nullable=False),
+        sa.Column(
+            "token", sqlmodel.sql.sqltypes.AutoString(length=128), nullable=False
+        ),
         sa.Column("project_id", sa.Uuid(), nullable=False),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(["project_id"], ["project.id"]),
