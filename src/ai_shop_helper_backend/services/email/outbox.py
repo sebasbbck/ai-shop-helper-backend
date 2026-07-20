@@ -3,7 +3,7 @@ import json
 import logging
 from datetime import timedelta
 
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.config import settings
@@ -11,7 +11,10 @@ from ai_shop_helper_backend.core.db import AsyncSessionLocal
 from ai_shop_helper_backend.core.email_types import EmailType
 from ai_shop_helper_backend.core.utils import get_datetime_utc
 from ai_shop_helper_backend.models.auth_email import EmailOutbox
-from ai_shop_helper_backend.services.email.provider import EmailDeliveryError, notifuse_provider
+from ai_shop_helper_backend.services.email.provider import (
+    EmailDeliveryError,
+    notifuse_provider,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +102,7 @@ async def _drain_once() -> int:
                 EmailOutbox.status == "pending",
                 EmailOutbox.next_attempt_at <= get_datetime_utc(),
             )
-            .order_by(EmailOutbox.created_at)
+            .order_by(col(EmailOutbox.created_at))
             .with_for_update(skip_locked=True)
             .limit(20)
         )

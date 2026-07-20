@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.callback_token import verify_callback_token
 from ai_shop_helper_backend.core.constants import (
@@ -8,12 +9,15 @@ from ai_shop_helper_backend.core.constants import (
     PROJECT_CONTEXT_KEYS,
 )
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
+from ai_shop_helper_backend.models.agent_runs import AgentRun
+from ai_shop_helper_backend.models.projects import Project
+from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.schemas.agent_runs import (
+    AgentInputSchema,
     AgentRunPublic,
     AgentRunStepPublic,
     AgentSchemaResponse,
     AgentStepSchema,
-    AgentInputSchema,
     CallbackBody,
     CallbackResponse,
     CreateRunBody,
@@ -29,10 +33,14 @@ from ai_shop_helper_backend.services.projects import get_project_by_id
 router = APIRouter(tags=["agent-runs"])
 
 
-async def _require_project_member(session, current_user, project_id: UUID):
+async def _require_project_member(
+    session: AsyncSession, current_user: User, project_id: UUID
+) -> Project:
     project = await get_project_by_id(session, project_id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     membership = await org_users.get_org_user(session, current_user.id, project.org_id)
     if not membership and not current_user.is_superuser:
         raise HTTPException(
@@ -42,17 +50,22 @@ async def _require_project_member(session, current_user, project_id: UUID):
     return project
 
 
-async def _require_run_project_member(session, current_user, run_id: UUID):
-    from ai_shop_helper_backend.models.agent_runs import AgentRun
-
+async def _require_run_project_member(
+    session: AsyncSession, current_user: User, run_id: UUID
+) -> AgentRun:
     run = await session.get(AgentRun, run_id)
     if not run:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"
+        )
     await _require_project_member(session, current_user, run.project_id)
     return run
 
 
-@router.get("/projects/{project_id}/agents/{agent_id}/schema", response_model=AgentSchemaResponse)
+@router.get(
+    "/projects/{project_id}/agents/{agent_id}/schema",
+    response_model=AgentSchemaResponse,
+)
 async def get_agent_schema(
     project_id: UUID,
     agent_id: UUID,
@@ -110,9 +123,7 @@ async def put_project_context(
     session: SessionDep,
 ) -> ProjectContextResponse:
     await _require_project_member(session, current_user, project_id)
-    accepted = {
-        k: v for k, v in body.values.items() if k in PROJECT_CONTEXT_KEYS
-    }
+    accepted = {k: v for k, v in body.values.items() if k in PROJECT_CONTEXT_KEYS}
     await svc.set_project_agent_inputs(session, project_id, accepted, current_user.id)
     await session.commit()
     rows = await svc.get_project_agent_inputs(session, project_id)
@@ -135,7 +146,9 @@ async def create_run(
     session: SessionDep,
 ) -> AgentRunPublic:
     await _require_project_member(session, current_user, project_id)
-    run = await svc.create_run(session, project_id, agent_id, body.run_inputs, current_user)
+    run = await svc.create_run(
+        session, project_id, agent_id, body.run_inputs, current_user
+    )
     steps = await svc.get_run_steps(session, run.id)
     return AgentRunPublic(
         **run.model_dump(),

@@ -47,9 +47,7 @@ async def get_role_by_access_level(
     Returns:
         Role | None: The role if found, None otherwise.
     """
-    result = await session.exec(
-        select(Role).where(Role.access_level == access_level)
-    )
+    result = await session.exec(select(Role).where(Role.access_level == access_level))
     return result.first()
 
 

@@ -1,10 +1,14 @@
 import base64
 import hashlib
+from typing import TYPE_CHECKING
 
 from ai_shop_helper_backend.core.config import settings
 
+if TYPE_CHECKING:
+    from cryptography.fernet import Fernet
 
-def _fernet():
+
+def _fernet() -> "Fernet":
     from cryptography.fernet import Fernet
 
     digest = hashlib.sha256(settings.CRYPTOGRAPHIC_KEY.encode()).digest()

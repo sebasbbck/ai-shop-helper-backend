@@ -8,7 +8,6 @@ from starlette.middleware.cors import CORSMiddleware
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.db import engine
 from ai_shop_helper_backend.core.seed import seed
-from ai_shop_helper_backend.services.email import outbox as email_outbox
 from ai_shop_helper_backend.routers import (
     agent_project_types,
     agent_runs,
@@ -23,6 +22,9 @@ from ai_shop_helper_backend.routers import (
     roles,
     users,
 )
+from ai_shop_helper_backend.services.email import outbox as email_outbox
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
     """Lifespan context manager to handle startup and shutdown events.

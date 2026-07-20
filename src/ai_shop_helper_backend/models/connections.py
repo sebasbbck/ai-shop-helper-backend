@@ -1,15 +1,14 @@
 import enum
 import uuid
 
-from sqlalchemy import Column
+from sqlalchemy import Column, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
 from ai_shop_helper_backend.models.mixins import TimestampMixin, UUIDMixin
 
 
-class ConnectionType(str, enum.Enum):
+class ConnectionType(enum.StrEnum):
     wordpress = "wordpress"
 
 
@@ -22,4 +21,6 @@ class Connection(UUIDMixin, TimestampMixin, SQLModel, table=True):
         sa_column=Column(SAEnum(ConnectionType, name="connectiontype"), nullable=False)
     )
     secrets_encrypted: str = Field(max_length=8192)
-    created_by: uuid.UUID | None = Field(default=None, foreign_key="user.id", nullable=True)
+    created_by: uuid.UUID | None = Field(
+        default=None, foreign_key="user.id", nullable=True
+    )

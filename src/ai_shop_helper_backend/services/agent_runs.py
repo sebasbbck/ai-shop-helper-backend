@@ -2,11 +2,15 @@ from datetime import UTC, datetime
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlmodel import select
+from sqlmodel import col, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.connections.registry import get_connection_provider
 from ai_shop_helper_backend.core.callback_token import make_callback_token
 from ai_shop_helper_backend.core.config import settings
+from ai_shop_helper_backend.core.constants import (
+    PROJECT_CONTEXT_FIELDS,
+)
 from ai_shop_helper_backend.models.agent_runs import (
     AgentInput,
     AgentRun,
@@ -16,11 +20,8 @@ from ai_shop_helper_backend.models.agent_runs import (
     ProjectAgentInput,
     RunStatus,
 )
-from ai_shop_helper_backend.connections.registry import get_connection_provider
-from ai_shop_helper_backend.core.constants import (
-    PROJECT_CONTEXT_FIELDS,
-    PROJECT_CONTEXT_KEYS,
-)
+from ai_shop_helper_backend.models.orgs import Org
+from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.runners.base import StartResult
 from ai_shop_helper_backend.runners.registry import get_runner
@@ -38,7 +39,9 @@ async def _verify_project_membership(
 
     project = await get_project_by_id(session, project_id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
     membership = await org_users.get_org_user(session, user.id, project.org_id)
     if not membership and not user.is_superuser:
         raise HTTPException(
@@ -51,16 +54,18 @@ async def _get_steps_ordered(session: AsyncSession, agent_id: UUID) -> list[Agen
     result = await session.exec(
         select(AgentStep)
         .where(AgentStep.agent_id == agent_id)
-        .order_by(AgentStep.order)
+        .order_by(col(AgentStep.order))
     )
     return list(result.all())
 
 
-async def _get_inputs_for_agent(session: AsyncSession, agent_id: UUID) -> list[AgentInput]:
+async def _get_inputs_for_agent(
+    session: AsyncSession, agent_id: UUID
+) -> list[AgentInput]:
     result = await session.exec(
         select(AgentInput)
         .where(AgentInput.agent_id == agent_id)
-        .order_by(AgentInput.order)
+        .order_by(col(AgentInput.order))
     )
     return list(result.all())
 
@@ -225,7 +230,7 @@ async def _start_step(
         await _advance_run(session, run, step, run_step, run_inputs_so_far)
 
 
-async def _get_run_org(session: AsyncSession, run: AgentRun):
+async def _get_run_org(session: AsyncSession, run: AgentRun) -> Org | None:
     project = await get_project_by_id(session, run.project_id)
     if not project:
         return None
@@ -240,9 +245,7 @@ async def _advance_run(
     run_inputs_so_far: dict[str, str],
 ) -> None:
     all_steps = await _get_steps_ordered(session, run.agent_id)
-    next_step = next(
-        (s for s in all_steps if s.order > completed_step.order), None
-    )
+    next_step = next((s for s in all_steps if s.order > completed_step.order), None)
 
     if next_step is None:
         run.status = RunStatus.success
@@ -252,7 +255,8 @@ async def _advance_run(
 
     agent_inputs = await _get_inputs_for_agent(session, run.agent_id)
     next_step_run_inputs = [
-        ai for ai in agent_inputs
+        ai
+        for ai in agent_inputs
         if ai.step_id == next_step.id and ai.scope == InputScope.run
     ]
 
@@ -351,7 +355,7 @@ async def set_project_agent_inputs(
 
 async def _validate_run_preconditions(
     session: AsyncSession,
-    project,
+    project: Project,
     agent_id: UUID,
     first_step: AgentStep,
     run_inputs: dict[str, str],
@@ -403,7 +407,9 @@ async def create_run(
 ) -> AgentRun:
     project = await get_project_by_id(session, project_id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
 
     steps = await _get_steps_ordered(session, agent_id)
     if not steps:
@@ -413,7 +419,9 @@ async def create_run(
         )
 
     first_step = steps[0]
-    await _validate_run_preconditions(session, project, agent_id, first_step, run_inputs)
+    await _validate_run_preconditions(
+        session, project, agent_id, first_step, run_inputs
+    )
 
     run = AgentRun(
         project_id=project_id,
@@ -461,7 +469,9 @@ async def record_step_result(
     )
     run_step = run_step_result.first()
     if not run_step:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run step not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Run step not found"
+        )
 
     if run_step.status != RunStatus.running:
         return
@@ -469,7 +479,9 @@ async def record_step_result(
     run_result = await session.exec(select(AgentRun).where(AgentRun.id == run_id))
     run = run_result.first()
     if not run:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"
+        )
 
     if not success:
         run_step.status = RunStatus.failed
@@ -507,8 +519,7 @@ async def record_step_result(
         return
 
     all_started_steps_result = await session.exec(
-        select(AgentRunStep)
-        .where(AgentRunStep.run_id == run_id)
+        select(AgentRunStep).where(AgentRunStep.run_id == run_id)
     )
     all_run_steps = list(all_started_steps_result.all())
     run_inputs_so_far: dict[str, str] = {}
@@ -530,7 +541,9 @@ async def submit_run_inputs(
     run_result = await session.exec(select(AgentRun).where(AgentRun.id == run_id))
     run = run_result.first()
     if not run:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Run not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Run not found"
+        )
 
     if run.status != RunStatus.awaiting_input:
         raise HTTPException(
@@ -539,7 +552,9 @@ async def submit_run_inputs(
         )
 
     all_steps = await _get_steps_ordered(session, run.agent_id)
-    awaited_step = next((s for s in all_steps if s.order == run.current_step_order), None)
+    awaited_step = next(
+        (s for s in all_steps if s.order == run.current_step_order), None
+    )
     if not awaited_step:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
@@ -583,17 +598,15 @@ async def get_run_steps(session: AsyncSession, run_id: UUID) -> list[AgentRunSte
     result = await session.exec(
         select(AgentRunStep)
         .where(AgentRunStep.run_id == run_id)
-        .order_by(AgentRunStep.started_at)
+        .order_by(col(AgentRunStep.started_at))
     )
     return list(result.all())
 
 
-async def list_project_runs(
-    session: AsyncSession, project_id: UUID
-) -> list[AgentRun]:
+async def list_project_runs(session: AsyncSession, project_id: UUID) -> list[AgentRun]:
     result = await session.exec(
         select(AgentRun)
         .where(AgentRun.project_id == project_id)
-        .order_by(AgentRun.created_at.desc())
+        .order_by(col(AgentRun.created_at).desc())
     )
     return list(result.all())

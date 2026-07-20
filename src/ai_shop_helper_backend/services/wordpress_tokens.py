@@ -1,5 +1,5 @@
 import secrets
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from uuid import UUID
 
 from sqlmodel import select
@@ -58,7 +58,7 @@ def is_expired(token: WordpressToken) -> bool:
     """
     expires_at = token.expires_at
     if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
+        expires_at = expires_at.replace(tzinfo=UTC)
     return get_datetime_utc() > expires_at
 
 

@@ -283,6 +283,10 @@ async def _issue_tokens(
         Token: The access token.
     """
     user = await users.get_user_by_id(session, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
+        )
 
     refresh_token_value = security.generate_refresh_token()
     session.add(
@@ -300,4 +304,6 @@ async def _issue_tokens(
         samesite="strict",
         path=settings.refresh_token_path,
     )
-    return Token(access_token=security.create_access_token(str(user_id), user.is_superuser))
+    return Token(
+        access_token=security.create_access_token(str(user_id), user.is_superuser)
+    )

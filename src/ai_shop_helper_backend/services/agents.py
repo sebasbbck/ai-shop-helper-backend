@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlmodel import func, select
+from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.models.agent_project_types import AgentProjectType
@@ -70,7 +70,7 @@ async def get_agents_by_project_type(
     """
     result = await session.exec(
         select(Agent)
-        .join(AgentProjectType, Agent.id == AgentProjectType.agent_id)
+        .join(AgentProjectType, col(Agent.id) == col(AgentProjectType.agent_id))
         .where(AgentProjectType.project_type_id == project_type_id)
     )
     return result.all()

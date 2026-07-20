@@ -100,7 +100,9 @@ async def get_agent_project_types(
     Returns:
         tuple[Sequence[AgentProjectType], int]: A tuple containing the list of relationships and the total count.
     """
-    total_result = await session.exec(select(func.count()).select_from(AgentProjectType))
+    total_result = await session.exec(
+        select(func.count()).select_from(AgentProjectType)
+    )
     apt_result = await session.exec(
         select(AgentProjectType).offset(offset).limit(limit)
     )

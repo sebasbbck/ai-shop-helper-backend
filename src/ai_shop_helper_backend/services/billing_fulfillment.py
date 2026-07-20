@@ -4,7 +4,10 @@ import sqlalchemy.exc
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ai_shop_helper_backend.models.billing import StripeProcessedEvent, StripeSubscription
+from ai_shop_helper_backend.models.billing import (
+    StripeProcessedEvent,
+    StripeSubscription,
+)
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.services import billing
 
@@ -52,7 +55,7 @@ async def fulfill(
         sub_row = result.first()
 
         if sub_row:
-            sub_row.plan = plan_key
+            sub_row.plan = plan_key or ""
             sub_row.status = status
             sub_row.credits_per_cycle = credits
             sub_row.current_period_end = current_period_end

@@ -1,4 +1,4 @@
-from enum import Enum
+from enum import StrEnum
 
 SUPPORTED_LOCALES = ("en", "es")
 DEFAULT_LOCALE = "es"
@@ -13,7 +13,7 @@ def notifuse_language(locale: str) -> str:
     return locale if locale in SUPPORTED_LOCALES else DEFAULT_LOCALE
 
 
-class EmailType(str, Enum):
+class EmailType(StrEnum):
     VERIFY_EMAIL = "verify_email"
     RESET_PASSWORD = "password_reset"
 

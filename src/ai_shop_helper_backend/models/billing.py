@@ -4,7 +4,11 @@ from uuid import UUID
 from sqlalchemy import UniqueConstraint
 from sqlmodel import Field, SQLModel
 
-from ai_shop_helper_backend.models.mixins import CreatedAtMixin, TimestampMixin, UUIDMixin
+from ai_shop_helper_backend.models.mixins import (
+    CreatedAtMixin,
+    TimestampMixin,
+    UUIDMixin,
+)
 
 
 class CreditTransaction(UUIDMixin, CreatedAtMixin, SQLModel, table=True):

@@ -1,7 +1,7 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlmodel import func, select
+from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.models.org_users import OrgUser
@@ -87,13 +87,13 @@ async def get_user_projects(
     total_result = await session.exec(
         select(func.count())
         .select_from(Project)
-        .join(OrgUser, Project.org_id == OrgUser.org_id)
+        .join(OrgUser, col(Project.org_id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
     )
 
     projects_result = await session.exec(
         select(Project)
-        .join(OrgUser, Project.org_id == OrgUser.org_id)
+        .join(OrgUser, col(Project.org_id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
         .offset(offset)
         .limit(limit)

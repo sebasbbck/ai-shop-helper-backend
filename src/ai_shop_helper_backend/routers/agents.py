@@ -69,9 +69,13 @@ async def get_agents(
     if project_type_id:
         items = await agents.get_agents_by_project_type(session, project_type_id)
         total = len(items)
-        paginated_items = items[pagination.offset : pagination.offset + pagination.limit]
+        paginated_items = items[
+            pagination.offset : pagination.offset + pagination.limit
+        ]
     else:
-        items, total = await agents.get_agents(session, pagination.offset, pagination.limit)
+        items, total = await agents.get_agents(
+            session, pagination.offset, pagination.limit
+        )
         paginated_items = items
 
     return PaginatedResponse(

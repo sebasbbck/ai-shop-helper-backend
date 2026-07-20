@@ -84,6 +84,10 @@ async def create_checkout_session(
         args["subscription_data"] = {"metadata": metadata}
 
     cs = await stripe.checkout.Session.create_async(**args)
+    if cs.url is None:
+        raise HTTPException(
+            status_code=502, detail="Stripe did not return a checkout URL"
+        )
     return cs.url
 
 
@@ -94,10 +98,14 @@ async def create_portal_session(session: AsyncSession, org: Org) -> str:
         customer=customer_id,
         return_url=settings.stripe_portal_return_url,
     )
+    if ps.url is None:
+        raise HTTPException(
+            status_code=502, detail="Stripe did not return a portal URL"
+        )
     return ps.url
 
 
-async def retrieve_checkout_session(session_id: str):
+async def retrieve_checkout_session(session_id: str) -> stripe.checkout.Session:
     """Retrieve a Stripe Checkout session by id, 404 if Stripe rejects it."""
     try:
         return await stripe.checkout.Session.retrieve_async(session_id)
@@ -105,9 +113,11 @@ async def retrieve_checkout_session(session_id: str):
         raise HTTPException(status_code=404, detail="Checkout session not found")
 
 
-def construct_event(payload: bytes, sig_header: str):
+def construct_event(payload: bytes, sig_header: str) -> stripe.Event:
     """Verify a Stripe webhook signature and return the parsed event."""
-    return stripe.Webhook.construct_event(payload, sig_header, settings.STRIPE_WEBHOOK_SECRET)
+    return stripe.Webhook.construct_event(
+        payload, sig_header, settings.STRIPE_WEBHOOK_SECRET
+    )
 
 
 async def seed_products() -> None:
@@ -121,7 +131,11 @@ async def seed_products() -> None:
 
             product = await stripe.Product.create_async(
                 name=f"AI Shop Helper — {t.name}",
-                metadata={"plan_key": t.key, "kind": "subscription", "credits": str(t.credits)},
+                metadata={
+                    "plan_key": t.key,
+                    "kind": "subscription",
+                    "credits": str(t.credits),
+                },
             )
             await stripe.Price.create_async(
                 product=product.id,
@@ -129,10 +143,16 @@ async def seed_products() -> None:
                 unit_amount=t.unit_amount,
                 recurring={"interval": "month"},
                 lookup_key=lookup,
-                metadata={"plan_key": t.key, "kind": "subscription", "credits": str(t.credits)},
+                metadata={
+                    "plan_key": t.key,
+                    "kind": "subscription",
+                    "credits": str(t.credits),
+                },
             )
 
-        topup_existing = await stripe.Price.list_async(lookup_keys=[TOPUP_LOOKUP_KEY], limit=1)
+        topup_existing = await stripe.Price.list_async(
+            lookup_keys=[TOPUP_LOOKUP_KEY], limit=1
+        )
         if not topup_existing.data:
             topup_product = await stripe.Product.create_async(
                 name="AI Shop Helper — Credit top-up",
@@ -151,4 +171,6 @@ async def seed_products() -> None:
             )
 
     except Exception:
-        logger.warning("seed_products: Stripe seeding failed (non-fatal)", exc_info=True)
+        logger.warning(
+            "seed_products: Stripe seeding failed (non-fatal)", exc_info=True
+        )

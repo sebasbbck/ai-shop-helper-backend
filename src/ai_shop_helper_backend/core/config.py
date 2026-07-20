@@ -1,7 +1,14 @@
 from typing import Annotated, Literal
 from urllib.parse import quote_plus
 
-from pydantic import AnyUrl, BeforeValidator, Field, PostgresDsn, computed_field, model_validator
+from pydantic import (
+    AnyUrl,
+    BeforeValidator,
+    Field,
+    PostgresDsn,
+    computed_field,
+    model_validator,
+)
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from ai_shop_helper_backend.core.utils import parse_urls
@@ -61,7 +68,9 @@ class Settings(BaseSettings):
     BACKEND_URL: str = Field(default=...)
     # WordPress connection (demo — removable)
     CRYPTOGRAPHIC_KEY: str = Field(default=...)
-    CALLBACK_API_WORDPRESS_URL: str = "http://localhost:8080/api/v1/connections/wordpress/callback"
+    CALLBACK_API_WORDPRESS_URL: str = (
+        "http://localhost:8080/api/v1/connections/wordpress/callback"
+    )
     WP_SUCCESS_FRONTEND_URL: str = "http://localhost:3000/connection/success"
     WP_ERROR_FRONTEND_URL: str = "http://localhost:3000/connection/failure"
     # Stripe
@@ -122,7 +131,9 @@ class Settings(BaseSettings):
         run without live accounts; production must not start without them.
         """
         if self.ENVIRONMENT.lower() == "prod" and not (
-            self.STRIPE_SECRET_KEY and self.STRIPE_WEBHOOK_SECRET and self.NOTIFUSE_API_KEY
+            self.STRIPE_SECRET_KEY
+            and self.STRIPE_WEBHOOK_SECRET
+            and self.NOTIFUSE_API_KEY
         ):
             raise ValueError(
                 "STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and NOTIFUSE_API_KEY are required in production"
@@ -132,12 +143,13 @@ class Settings(BaseSettings):
     @computed_field
     @property
     def refresh_token_path(self) -> str:
-        """Construct the path for the refresh token endpoint.
+        """Cookie path for the refresh token.
+
+        Must be '/' so proxy.ts can read the cookie on page routes.
 
         Returns:
-            str: The path for the refresh token endpoint.
+            str: The cookie path for the refresh token.
         """
-        # return f"{self.API_V1_STR}/auth/refresh"
         return "/"
 
     @computed_field

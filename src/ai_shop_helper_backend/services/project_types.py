@@ -110,9 +110,7 @@ async def update_project_type(
     return project_type
 
 
-async def delete_project_type(
-    session: AsyncSession, project_type: ProjectType
-) -> None:
+async def delete_project_type(session: AsyncSession, project_type: ProjectType) -> None:
     """Delete a project type.
 
     Args:

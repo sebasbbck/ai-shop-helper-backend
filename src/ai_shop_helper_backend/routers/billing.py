@@ -32,9 +32,8 @@ from ai_shop_helper_backend.schemas.billing import (
     UrlResponse,
 )
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
-from ai_shop_helper_backend.services import billing
+from ai_shop_helper_backend.services import billing, billing_webhook
 from ai_shop_helper_backend.services import billing_fulfillment as fulfillment
-from ai_shop_helper_backend.services import billing_webhook
 from ai_shop_helper_backend.services import stripe_gateway as gateway
 from ai_shop_helper_backend.services.orgs import get_org_by_id
 
@@ -51,7 +50,9 @@ async def get_balance(
     """Return the credit balance for an organisation."""
     org = await get_org_by_id(session, org_id)
     if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
     return BalanceResponse(
         subscription_credits=org.subscription_credits,
         purchased_credits=org.purchased_credits,
@@ -93,7 +94,11 @@ async def create_checkout(
     elif body.plan_key in SUB_BY_KEY:
         lookup_key = stripe_lookup_key(body.plan_key)
         mode = "subscription"
-        metadata = {"org_id": str(org_id), "plan_key": body.plan_key, "kind": "subscription"}
+        metadata = {
+            "org_id": str(org_id),
+            "plan_key": body.plan_key,
+            "kind": "subscription",
+        }
     else:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -101,7 +106,9 @@ async def create_checkout(
         )
     org = await get_org_by_id(session, org_id)
     if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
     url = await gateway.create_checkout_session(
         session, org, lookup_key=lookup_key, mode=mode, metadata=metadata
     )
@@ -133,13 +140,15 @@ async def confirm_checkout(
 
     org = await get_org_by_id(session, org_id)
     if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
 
     kind = metadata["kind"]
     sid = body.session_id
 
     if kind == "topup":
-        credits = credits_for_topup(cs.amount_total)
+        credits = credits_for_topup(cs.amount_total or 0)
         await fulfillment.fulfill(
             session,
             org,
@@ -166,6 +175,10 @@ async def confirm_checkout(
         )
 
     refreshed = await get_org_by_id(session, org_id)
+    if refreshed is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
     return BalanceResponse(
         subscription_credits=refreshed.subscription_credits,
         purchased_credits=refreshed.purchased_credits,
@@ -182,13 +195,15 @@ async def create_portal(
     """Create a Stripe Billing Portal session for the organisation."""
     org = await get_org_by_id(session, org_id)
     if not org:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
+        )
     url = await gateway.create_portal_session(session, org)
     return UrlResponse(url=url)
 
 
 @catalog_router.post("/webhook")
-async def stripe_webhook(request: Request, session: SessionDep):
+async def stripe_webhook(request: Request, session: SessionDep) -> dict[str, bool]:
     """Receive and process Stripe webhook events (signature-verified, no auth)."""
     payload = await request.body()
     sig = request.headers.get("stripe-signature", "")

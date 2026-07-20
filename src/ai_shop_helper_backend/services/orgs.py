@@ -1,11 +1,11 @@
 from collections.abc import Sequence
 from uuid import UUID
 
-from sqlmodel import func, select
+from sqlmodel import col, func, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.org_users import OrgUser
+from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.schemas.orgs import OrgCreate, OrgUpdate
 
@@ -57,13 +57,13 @@ async def get_user_orgs(
     total_result = await session.exec(
         select(func.count())
         .select_from(Org)
-        .join(OrgUser, Org.id == OrgUser.org_id)
+        .join(OrgUser, col(Org.id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
     )
 
     orgs_result = await session.exec(
         select(Org)
-        .join(OrgUser, Org.id == OrgUser.org_id)
+        .join(OrgUser, col(Org.id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
         .offset(offset)
         .limit(limit)
@@ -97,6 +97,8 @@ async def create_org_with_owner(
     await session.flush()
 
     owner_role = await roles.get_role_by_access_level(session, 0)
+    if owner_role is None:
+        raise ValueError("Owner role (access_level=0) not found")
 
     org_user_in = OrgUserCreate(
         user_id=user_id,
@@ -107,7 +109,10 @@ async def create_org_with_owner(
 
     from ai_shop_helper_backend.core.constants import FREE_TIER_CREDITS
     from ai_shop_helper_backend.services import billing
-    await billing.grant_purchased(session, org, FREE_TIER_CREDITS, reason="signup_bonus", meta={"free": True})
+
+    await billing.grant_purchased(
+        session, org, FREE_TIER_CREDITS, reason="signup_bonus", meta={"free": True}
+    )
 
     return org
 
@@ -161,14 +166,14 @@ async def get_user_orgs_with_projects(
     total_result = await session.exec(
         select(func.count())
         .select_from(Org)
-        .join(OrgUser, Org.id == OrgUser.org_id)
+        .join(OrgUser, col(Org.id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
     )
     total = total_result.one()
 
     orgs_result = await session.exec(
         select(Org)
-        .join(OrgUser, Org.id == OrgUser.org_id)
+        .join(OrgUser, col(Org.id) == col(OrgUser.org_id))
         .where(OrgUser.user_id == user_id)
         .offset(offset)
         .limit(limit)
@@ -178,7 +183,7 @@ async def get_user_orgs_with_projects(
     org_ids = [org.id for org in orgs]
     if org_ids:
         projects_result = await session.exec(
-            select(Project).where(Project.org_id.in_(org_ids))
+            select(Project).where(col(Project.org_id).in_(org_ids))
         )
         all_projects = projects_result.all()
     else:

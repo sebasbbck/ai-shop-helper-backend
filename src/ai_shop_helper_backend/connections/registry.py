@@ -10,5 +10,7 @@ _registry: dict[ConnectionType, ConnectionProvider] = {
 def get_connection_provider(connection_type: ConnectionType) -> ConnectionProvider:
     provider = _registry.get(connection_type)
     if provider is None:
-        raise ValueError(f"No connection provider registered for type: {connection_type!r}")
+        raise ValueError(
+            f"No connection provider registered for type: {connection_type!r}"
+        )
     return provider

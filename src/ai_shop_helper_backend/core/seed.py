@@ -110,8 +110,12 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
         session.add(step_generate)
         await session.flush()
 
-    project_inputs: list[tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]] = []
-    run_inputs: list[tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]] = [
+    project_inputs: list[
+        tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]
+    ] = []
+    run_inputs: list[
+        tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]
+    ] = [
         (
             "chosen_title",
             InputType.select,
@@ -132,8 +136,19 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
         ),
     ]
 
-    for scope, specs in ((InputScope.project, project_inputs), (InputScope.run, run_inputs)):
-        for key, input_type, order, label_key, step, options, options_from_slug in specs:
+    for scope, specs in (
+        (InputScope.project, project_inputs),
+        (InputScope.run, run_inputs),
+    ):
+        for (
+            key,
+            input_type,
+            order,
+            label_key,
+            step,
+            options,
+            options_from_slug,
+        ) in specs:
             if await _get_agent_input_by_key(session, agent.id, key) is not None:
                 continue
             session.add(
@@ -213,4 +228,5 @@ async def seed() -> None:
             await session.rollback()
 
     from ai_shop_helper_backend.services import stripe_gateway
+
     await stripe_gateway.seed_products()

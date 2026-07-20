@@ -22,7 +22,9 @@ user_router = APIRouter(prefix="/projects", tags=["projects"])
 
 
 @router.post(
-    "/{org_id}/projects", response_model=ProjectPublic, status_code=status.HTTP_201_CREATED
+    "/{org_id}/projects",
+    response_model=ProjectPublic,
+    status_code=status.HTTP_201_CREATED,
 )
 async def create_project(
     org_id: UUID,
@@ -184,7 +186,9 @@ async def update_project(
     return ProjectPublic.model_validate(updated_project)
 
 
-@router.delete("/{org_id}/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/{org_id}/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT
+)
 async def delete_project(
     org_id: UUID,
     project_id: UUID,

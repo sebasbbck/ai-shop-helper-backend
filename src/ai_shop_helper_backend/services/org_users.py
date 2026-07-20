@@ -9,7 +9,9 @@ from ai_shop_helper_backend.models.roles import Role
 from ai_shop_helper_backend.schemas.org_users import OrgUserCreate, OrgUserUpdate
 
 
-async def get_org_user_by_id(session: AsyncSession, org_user_id: UUID) -> OrgUser | None:
+async def get_org_user_by_id(
+    session: AsyncSession, org_user_id: UUID
+) -> OrgUser | None:
     """Get an org-user relationship by ID.
 
     Args:

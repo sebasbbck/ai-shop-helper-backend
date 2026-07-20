@@ -20,7 +20,9 @@ router = APIRouter(prefix="/orgs", tags=["org-members"])
 
 
 @router.post(
-    "/{org_id}/members", response_model=OrgUserPublic, status_code=status.HTTP_201_CREATED
+    "/{org_id}/members",
+    response_model=OrgUserPublic,
+    status_code=status.HTTP_201_CREATED,
 )
 async def add_org_member(
     org_id: UUID,

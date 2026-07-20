@@ -1,9 +1,9 @@
 import secrets
-from datetime import timedelta, timezone
+from datetime import UTC, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException
-from sqlmodel import delete, select
+from sqlmodel import col, delete, select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.core.config import settings
@@ -28,7 +28,7 @@ def _is_expired(tok: AuthEmailToken) -> bool:
     """Return True if the token's expiry has passed (tz-safe)."""
     expires_at = tok.expires_at
     if expires_at.tzinfo is None:
-        expires_at = expires_at.replace(tzinfo=timezone.utc)
+        expires_at = expires_at.replace(tzinfo=UTC)
     return get_datetime_utc() > expires_at
 
 
@@ -48,7 +48,7 @@ async def _throttled(session: AsyncSession, user_id: UUID, purpose: str) -> bool
             AuthEmailToken.purpose == purpose,
             AuthEmailToken.created_at >= one_hour_ago,
         )
-        .order_by(AuthEmailToken.created_at.desc())
+        .order_by(col(AuthEmailToken.created_at).desc())
     )
     recent = result.all()
 
@@ -59,7 +59,7 @@ async def _throttled(session: AsyncSession, user_id: UUID, purpose: str) -> bool
         latest = recent[0]
         created_at = latest.created_at
         if created_at.tzinfo is None:
-            created_at = created_at.replace(tzinfo=timezone.utc)
+            created_at = created_at.replace(tzinfo=UTC)
         elapsed = (now - created_at).total_seconds()
         if elapsed < settings.EMAIL_RESEND_COOLDOWN_S:
             return True
@@ -148,6 +148,8 @@ async def verify(session: AsyncSession, token_value: str) -> User:
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
     user = await users_service.get_user_by_id(session, tok.user_id)
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
     user.email_verified = True
     tok.used_at = get_datetime_utc()
     session.add(user)
@@ -162,7 +164,9 @@ async def start_password_reset(session: AsyncSession, email: str, locale: str) -
         return
     if await _throttled(session, user.id, PURPOSE_RESET):
         return
-    await _issue_and_send(session, user, PURPOSE_RESET, EmailType.RESET_PASSWORD, locale)
+    await _issue_and_send(
+        session, user, PURPOSE_RESET, EmailType.RESET_PASSWORD, locale
+    )
 
 
 async def reset_password(
@@ -184,10 +188,12 @@ async def reset_password(
         raise HTTPException(status_code=400, detail="Invalid or expired token")
 
     user = await users_service.get_user_by_id(session, tok.user_id)
+    if user is None:
+        raise HTTPException(status_code=400, detail="Invalid or expired token")
     user.hashed_password = hash_password(new_password)
     tok.used_at = get_datetime_utc()
 
-    await session.exec(delete(RefreshToken).where(RefreshToken.user_id == user.id))
+    await session.exec(delete(RefreshToken).where(col(RefreshToken.user_id) == user.id))
 
     session.add(user)
     session.add(tok)

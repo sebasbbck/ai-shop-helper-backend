@@ -4,11 +4,14 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import RedirectResponse
+from sqlmodel.ext.asyncio.session import AsyncSession
 
 from ai_shop_helper_backend.connections.base import decode_secrets
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
 from ai_shop_helper_backend.models.connections import ConnectionType
+from ai_shop_helper_backend.models.projects import Project
+from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.schemas.connections import (
     WordpressStartBody,
     WordpressStartResponse,
@@ -23,10 +26,14 @@ router = APIRouter(prefix="/connections", tags=["connections"])
 logger = logging.getLogger(__name__)
 
 
-async def _require_project_member(session, current_user, project_id: UUID):
+async def _require_project_member(
+    session: AsyncSession, current_user: User, project_id: UUID
+) -> Project:
     project = await projects.get_project_by_id(session, project_id)
     if not project:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Project not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Project not found"
+        )
 
     membership = await org_users.get_org_user(session, current_user.id, project.org_id)
     if not membership and not current_user.is_superuser:
@@ -79,7 +86,9 @@ async def wordpress_callback(
 
     record = await wp_tokens.get_token(session, token)
     if not record:
-        logger.error("WordPress callback received invalid or already-used token: %s", token)
+        logger.error(
+            "WordPress callback received invalid or already-used token: %s", token
+        )
         return RedirectResponse(url=f"{error_url}?code=token_invalid")
 
     if wp_tokens.is_expired(record):
@@ -102,7 +111,9 @@ async def wordpress_callback(
         )
         await wp_tokens.delete_token(session, record)
         await session.commit()
-        logger.info("WordPress connection established for project %s", record.project_id)
+        logger.info(
+            "WordPress connection established for project %s", record.project_id
+        )
         return RedirectResponse(url=success_url)
     except Exception:
         logger.exception("Unexpected error in WordPress callback")

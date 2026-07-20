@@ -12,7 +12,12 @@ from ai_shop_helper_backend.core.deps import (
     SessionDep,
 )
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
-from ai_shop_helper_backend.schemas.orgs import OrgCreate, OrgPublic, OrgUpdate, OrgWithProjects
+from ai_shop_helper_backend.schemas.orgs import (
+    OrgCreate,
+    OrgPublic,
+    OrgUpdate,
+    OrgWithProjects,
+)
 from ai_shop_helper_backend.schemas.projects import ProjectPublic
 from ai_shop_helper_backend.services import orgs
 
@@ -70,7 +75,7 @@ async def get_my_orgs(
         items=[
             OrgWithProjects(
                 **OrgPublic.model_validate(org).model_dump(),
-                projects=[ProjectPublic.model_validate(p) for p in projects]
+                projects=[ProjectPublic.model_validate(p) for p in projects],
             )
             for org, projects in orgs_with_projects
         ],
