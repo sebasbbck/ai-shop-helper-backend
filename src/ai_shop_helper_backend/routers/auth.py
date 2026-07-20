@@ -1,13 +1,10 @@
 from typing import Annotated
-from uuid import UUID
 
 from fastapi import APIRouter, Cookie, Depends, HTTPException, Request, Response, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy import delete
 from sqlmodel import col, select
-from sqlmodel.ext.asyncio.session import AsyncSession
 
-from ai_shop_helper_backend.core import security
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
 from ai_shop_helper_backend.core.utils import get_datetime_utc
@@ -22,6 +19,7 @@ from ai_shop_helper_backend.schemas.auth import (
 )
 from ai_shop_helper_backend.schemas.users import UserCreate, UserPublic
 from ai_shop_helper_backend.services import auth_email, users
+from ai_shop_helper_backend.services.auth import issue_session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -106,7 +104,7 @@ async def login(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="email_not_verified",
         )
-    return await _issue_tokens(session, response, user.id)
+    return await issue_session(session, response, user.id)
 
 
 @router.post("/refresh", response_model=Token)
@@ -150,7 +148,7 @@ async def refresh(
             headers={"set-cookie": cleared.headers["set-cookie"]},
         )
     await session.delete(token_record)
-    return await _issue_tokens(session, response, token_record.user_id)
+    return await issue_session(session, response, token_record.user_id)
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
@@ -265,45 +263,3 @@ async def reset_password(
     """
     await auth_email.reset_password(session, body.token, body.new_password)
     return MessageResponse(message="Password updated")
-
-
-async def _issue_tokens(
-    session: AsyncSession,
-    response: Response,
-    user_id: UUID,
-) -> Token:
-    """Issue a new access token and refresh token.
-
-    Args:
-        session (AsyncSession): The database session.
-        response (Response): The HTTP response.
-        user_id (UUID): The user ID.
-
-    Returns:
-        Token: The access token.
-    """
-    user = await users.get_user_by_id(session, user_id)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found"
-        )
-
-    refresh_token_value = security.generate_refresh_token()
-    session.add(
-        RefreshToken(
-            user_id=user_id,
-            token=refresh_token_value,
-            expires_at=security.refresh_token_expiry(),
-        )
-    )
-    response.set_cookie(
-        key=settings.REFRESH_TOKEN_COOKIE,
-        value=refresh_token_value,
-        httponly=True,
-        secure=True,
-        samesite="strict",
-        path=settings.refresh_token_path,
-    )
-    return Token(
-        access_token=security.create_access_token(str(user_id), user.is_superuser)
-    )

@@ -249,7 +249,7 @@ class TestLogin:
                 return_value=verified_user,
             ),
             patch(
-                "ai_shop_helper_backend.routers.auth._issue_tokens",
+                "ai_shop_helper_backend.routers.auth.issue_session",
                 new_callable=AsyncMock,
                 return_value=expected_token,
             ),
