@@ -1,10 +1,8 @@
 """Unit tests for services/email/outbox.py — provider and session fully mocked."""
 
 import json
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from ai_shop_helper_backend.core.email_types import EmailType
 from ai_shop_helper_backend.models.auth_email import EmailOutbox
@@ -23,7 +21,7 @@ def _make_row(**kwargs) -> EmailOutbox:
         external_id="ext-001",
         status="pending",
         attempts=0,
-        next_attempt_at=datetime.now(tz=timezone.utc),
+        next_attempt_at=datetime.now(tz=UTC),
         last_error=None,
         sent_at=None,
     )
@@ -166,7 +164,9 @@ class TestDeliverOne:
         row = _make_row(attempts=5)
 
         with patch.object(outbox, "notifuse_provider") as mock_provider:
-            mock_provider.send = AsyncMock(side_effect=EmailDeliveryError("bad request"))
+            mock_provider.send = AsyncMock(
+                side_effect=EmailDeliveryError("bad request")
+            )
             with patch(
                 "ai_shop_helper_backend.services.email.outbox.settings"
             ) as mock_settings:

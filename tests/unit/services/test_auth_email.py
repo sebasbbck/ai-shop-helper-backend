@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -15,8 +15,8 @@ from ai_shop_helper_backend.services import auth_email
 from ai_shop_helper_backend.services.auth_email import (
     PURPOSE_RESET,
     PURPOSE_VERIFY,
-    reset_password,
     resend_verification,
+    reset_password,
     start_password_reset,
     start_verification,
     verify,
@@ -24,7 +24,7 @@ from ai_shop_helper_backend.services.auth_email import (
 
 
 def _utc_now() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _make_token(
@@ -56,7 +56,9 @@ class TestStartVerification:
         added_objects: list = []
         mock_session.add.side_effect = added_objects.append
 
-        with patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue:
+        with patch.object(
+            auth_email.outbox, "enqueue", new_callable=AsyncMock
+        ) as mock_enqueue:
             await start_verification(mock_session, user, locale="en")
 
         token_rows = [o for o in added_objects if isinstance(o, AuthEmailToken)]
@@ -146,7 +148,9 @@ class TestResendVerification:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = None
             await resend_verification(mock_session, "ghost@example.com", locale="en")
@@ -164,7 +168,9 @@ class TestResendVerification:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = user
             await resend_verification(mock_session, user.email, locale="en")
@@ -182,8 +188,12 @@ class TestResendVerification:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email, "_throttled", new_callable=AsyncMock) as mock_throttle,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email, "_throttled", new_callable=AsyncMock
+            ) as mock_throttle,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = user
             mock_throttle.return_value = True
@@ -197,7 +207,7 @@ class TestResendVerification:
         make_user: Callable[..., User],
     ) -> None:
         """resend_verification enqueues when user exists, unverified, and not throttled."""
-        user = make_user()
+        user = make_user(email_verified=False)
         added_objects: list = []
         mock_session.add.side_effect = added_objects.append
 
@@ -205,8 +215,12 @@ class TestResendVerification:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email, "_throttled", new_callable=AsyncMock) as mock_throttle,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email, "_throttled", new_callable=AsyncMock
+            ) as mock_throttle,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = user
             mock_throttle.return_value = False
@@ -227,9 +241,7 @@ class TestThrottled:
         result = await auth_email._throttled(mock_session, uuid.uuid4(), PURPOSE_VERIFY)
         assert result is False
 
-    async def test_throttled_when_count_at_max(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_throttled_when_count_at_max(self, mock_session: AsyncMock) -> None:
         """_throttled returns True when hourly count >= EMAIL_RESEND_MAX_PER_HOUR."""
         from ai_shop_helper_backend.core.config import settings
 
@@ -256,14 +268,13 @@ class TestThrottled:
         result = await auth_email._throttled(mock_session, uuid.uuid4(), PURPOSE_VERIFY)
         assert result is True
 
-    async def test_not_throttled_after_cooldown(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_not_throttled_after_cooldown(self, mock_session: AsyncMock) -> None:
         """_throttled returns False when most recent token is past the cooldown window."""
         from ai_shop_helper_backend.core.config import settings
 
         old_tok = _make_token(
-            created_at=_utc_now() - timedelta(seconds=settings.EMAIL_RESEND_COOLDOWN_S + 5)
+            created_at=_utc_now()
+            - timedelta(seconds=settings.EMAIL_RESEND_COOLDOWN_S + 5)
         )
         exec_result = MagicMock()
         exec_result.all.return_value = [old_tok]
@@ -282,7 +293,9 @@ class TestStartPasswordReset:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = None
             await start_password_reset(mock_session, "ghost@example.com", locale="en")
@@ -303,8 +316,12 @@ class TestStartPasswordReset:
             patch.object(
                 auth_email.users_service, "get_user_by_email", new_callable=AsyncMock
             ) as mock_get,
-            patch.object(auth_email, "_throttled", new_callable=AsyncMock) as mock_throttle,
-            patch.object(auth_email.outbox, "enqueue", new_callable=AsyncMock) as mock_enqueue,
+            patch.object(
+                auth_email, "_throttled", new_callable=AsyncMock
+            ) as mock_throttle,
+            patch.object(
+                auth_email.outbox, "enqueue", new_callable=AsyncMock
+            ) as mock_enqueue,
         ):
             mock_get.return_value = user
             mock_throttle.return_value = False
@@ -348,9 +365,7 @@ class TestResetPassword:
             await reset_password(mock_session, "bad_token", "NewP@ss!")
         assert exc_info.value.status_code == 400
 
-    async def test_expired_token_raises_400(
-        self, mock_session: AsyncMock
-    ) -> None:
+    async def test_expired_token_raises_400(self, mock_session: AsyncMock) -> None:
         """reset_password raises HTTPException(400) when token is expired."""
         tok = _make_token(
             purpose=PURPOSE_RESET,

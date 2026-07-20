@@ -62,10 +62,21 @@ class TestEmailTypeValues:
 class TestNotifuseProviderSend:
     """Tests for NotifuseProvider.send using MockTransport."""
 
-    async def test_posts_to_correct_url_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_posts_to_correct_url_path(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -86,10 +97,21 @@ class TestNotifuseProviderSend:
         assert len(captured) == 1
         assert captured[0].url.path == "/api/transactional.send"
 
-    async def test_authorization_header_contains_bearer_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_authorization_header_contains_bearer_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -109,10 +131,21 @@ class TestNotifuseProviderSend:
 
         assert captured[0].headers["authorization"] == f"Bearer {API_KEY}"
 
-    async def test_body_contains_workspace_id(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_body_contains_workspace_id(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -133,10 +166,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["workspace_id"] == WORKSPACE_ID
 
-    async def test_notification_id_matches_template_slug(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_notification_id_matches_template_slug(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -158,10 +202,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["id"] == slug
 
-    async def test_channels_is_email_list(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_channels_is_email_list(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -182,10 +237,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["channels"] == ["email"]
 
-    async def test_contact_language_mapped_from_locale(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_contact_language_mapped_from_locale(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -206,10 +272,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["contact"]["language"] == "es"
 
-    async def test_first_name_fallback_to_email_local_part(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_first_name_fallback_to_email_local_part(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -230,10 +307,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["contact"]["first_name"] == "johndoe"
 
-    async def test_data_passed_through_to_notification(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_data_passed_through_to_notification(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -255,10 +343,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["data"] == template_data
 
-    async def test_non_2xx_raises_email_delivery_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_non_2xx_raises_email_delivery_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         provider = _make_provider(_error_handler)
 
@@ -274,10 +373,21 @@ class TestNotifuseProviderSend:
 
         assert "400" in str(exc_info.value)
 
-    async def test_transport_exception_raises_email_delivery_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_transport_exception_raises_email_delivery_error(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         def raising_handler(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("connection refused")
@@ -294,10 +404,21 @@ class TestNotifuseProviderSend:
                 external_id="ext-010",
             )
 
-    async def test_external_id_in_notification_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_external_id_in_notification_body(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 
@@ -318,10 +439,21 @@ class TestNotifuseProviderSend:
         body = json.loads(captured[0].content)
         assert body["notification"]["external_id"] == "idempotency-key-xyz"
 
-    async def test_api_key_not_present_in_request_body(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL", BASE_URL)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY", API_KEY)
-        monkeypatch.setattr("ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID", WORKSPACE_ID)
+    async def test_api_key_not_present_in_request_body(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_BASE_URL",
+            BASE_URL,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_API_KEY",
+            API_KEY,
+        )
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.services.email.provider.settings.NOTIFUSE_WORKSPACE_ID",
+            WORKSPACE_ID,
+        )
 
         captured: list[httpx.Request] = []
 

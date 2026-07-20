@@ -10,6 +10,8 @@ from testcontainers.postgres import PostgresContainer
 
 from ai_shop_helper_backend.core.db import AsyncSessionLocal, get_session
 from ai_shop_helper_backend.main import app
+from ai_shop_helper_backend.models.project_types import ProjectType
+from ai_shop_helper_backend.models.roles import Role
 from ai_shop_helper_backend.models.users import User
 
 
@@ -140,3 +142,45 @@ async def superuser_headers(
     )
     assert response.status_code == 200, response.text
     return {"Authorization": f"Bearer {response.json()['access_token']}"}
+
+
+@pytest.fixture
+async def seed_author(
+    create_user: Callable[..., Coroutine[None, None, User]],
+) -> User:
+    """A user to author base seed rows (roles, project types) in tests."""
+    return await create_user(email="seed-author@example.com")
+
+
+@pytest.fixture
+async def seeded_roles(session: AsyncSession, seed_author: User) -> dict[str, Role]:
+    """Insert the base Owner/Admin/Member roles (wiped by clean_db otherwise)."""
+    roles = {
+        name: Role(
+            name=name,
+            access_level=level,
+            created_by=seed_author.id,
+            updated_by=seed_author.id,
+        )
+        for name, level in (("Owner", 0), ("Admin", 10), ("Member", 20))
+    }
+    for role in roles.values():
+        session.add(role)
+    await session.commit()
+    for role in roles.values():
+        await session.refresh(role)
+    return roles
+
+
+@pytest.fixture
+async def project_type(session: AsyncSession, seed_author: User) -> ProjectType:
+    """Insert a base project type for project tests."""
+    pt = ProjectType(
+        name="WordPress",
+        created_by=seed_author.id,
+        updated_by=seed_author.id,
+    )
+    session.add(pt)
+    await session.commit()
+    await session.refresh(pt)
+    return pt

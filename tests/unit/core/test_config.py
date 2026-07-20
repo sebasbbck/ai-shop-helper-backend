@@ -16,15 +16,10 @@ class TestIsDevelopment:
 class TestRefreshTokenPath:
     """Tests for the refresh_token_path property of Settings."""
 
-    def test_appends_auth_refresh_to_api_prefix(self):
-        """refresh_token_path should append '/auth/refresh' to the API_V1_STR prefix."""
-        assert (
-            Settings(API_V1_STR="/api/v1").refresh_token_path == "/api/v1/auth/refresh"
-        )
-
-    def test_empty_prefix(self):
-        """If API_V1_STR is empty, refresh_token_path should be '/auth/refresh'."""
-        assert Settings(API_V1_STR="").refresh_token_path == "/auth/refresh"
+    def test_is_root_regardless_of_prefix(self):
+        """refresh_token_path must be '/' so proxy.ts can read the cookie on page routes."""
+        assert Settings(API_V1_STR="/api/v1").refresh_token_path == "/"
+        assert Settings(API_V1_STR="").refresh_token_path == "/"
 
 
 class TestCorsOrigins:

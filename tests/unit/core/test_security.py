@@ -66,7 +66,9 @@ class TestAccessToken:
     def test_create_includes_is_superuser(self, is_superuser: bool):
         """Test that is_superuser is correctly encoded in the token."""
         token = create_access_token("user-123", is_superuser)
-        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM])
+        payload = jwt.decode(
+            token, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM]
+        )
         assert payload["is_superuser"] == is_superuser
 
 

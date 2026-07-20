@@ -3,12 +3,14 @@
 import uuid
 from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ai_shop_helper_backend.core.callback_token import make_callback_token, verify_callback_token
+from ai_shop_helper_backend.core.callback_token import (
+    make_callback_token,
+    verify_callback_token,
+)
 from ai_shop_helper_backend.models.agent_runs import (
     AgentInput,
     AgentRun,
@@ -16,7 +18,6 @@ from ai_shop_helper_backend.models.agent_runs import (
     AgentStep,
     InputScope,
     InputType,
-    ProjectAgentInput,
     RunnerType,
     RunStatus,
 )
@@ -126,8 +127,8 @@ class TestCreateRun:
         make_org: Callable[..., Org],
         make_user: Callable[..., User],
     ) -> None:
-        from ai_shop_helper_backend.services.agent_runs import create_run
         from ai_shop_helper_backend.runners.base import StartResult
+        from ai_shop_helper_backend.services.agent_runs import create_run
 
         project_id = uuid.uuid4()
         agent_id = uuid.uuid4()
@@ -187,9 +188,7 @@ class TestCreateRun:
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
-                return_value=MagicMock(
-                    start=AsyncMock(return_value=accepted_result)
-                ),
+                return_value=MagicMock(start=AsyncMock(return_value=accepted_result)),
             ),
         ):
             mock_session.flush = AsyncMock()
@@ -199,7 +198,7 @@ class TestCreateRun:
                 return_value=MagicMock(all=MagicMock(return_value=[]))
             )
 
-            result = await create_run(mock_session, project_id, agent_id, {}, user)
+            await create_run(mock_session, project_id, agent_id, {}, user)
 
         mock_debit.assert_awaited_once()
         debit_call = mock_debit.call_args
@@ -211,8 +210,8 @@ class TestCreateRun:
         make_org: Callable[..., Org],
         make_user: Callable[..., User],
     ) -> None:
-        from ai_shop_helper_backend.services.agent_runs import create_run
         from ai_shop_helper_backend.runners.base import StartResult
+        from ai_shop_helper_backend.services.agent_runs import create_run
 
         project_id = uuid.uuid4()
         agent_id = uuid.uuid4()
@@ -338,7 +337,9 @@ class TestCreateRun:
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
                 new_callable=AsyncMock,
-                side_effect=HTTPException(status_code=402, detail="Insufficient credits"),
+                side_effect=HTTPException(
+                    status_code=402, detail="Insufficient credits"
+                ),
             ),
         ):
             with pytest.raises(HTTPException) as exc_info:
@@ -416,9 +417,7 @@ class TestCreateRun:
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.get_runner",
-                return_value=MagicMock(
-                    start=AsyncMock(return_value=rejected_result)
-                ),
+                return_value=MagicMock(start=AsyncMock(return_value=rejected_result)),
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs._get_run_org",
@@ -447,7 +446,6 @@ class TestRecordStepResult:
     ) -> None:
         from ai_shop_helper_backend.services.agent_runs import record_step_result
 
-        org = make_org(subscription_credits=100)
         agent_id = uuid.uuid4()
         project_id = uuid.uuid4()
         step1 = _make_step(agent_id, order=1)
@@ -732,9 +730,7 @@ class TestSubmitRunInputs:
         ):
             exec_results = [
                 MagicMock(first=MagicMock(return_value=run)),
-                MagicMock(
-                    first=MagicMock(return_value=pending_run_step2)
-                ),
+                MagicMock(first=MagicMock(return_value=pending_run_step2)),
                 MagicMock(all=MagicMock(return_value=[pending_run_step2])),
                 MagicMock(all=MagicMock(return_value=[])),
             ]
@@ -1021,7 +1017,9 @@ class TestRunPreconditions:
             patch(
                 "ai_shop_helper_backend.services.agent_runs._validate_run_preconditions",
                 new_callable=AsyncMock,
-                side_effect=HTTPException(status_code=409, detail="connection_required"),
+                side_effect=HTTPException(
+                    status_code=409, detail="connection_required"
+                ),
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",

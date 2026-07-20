@@ -4,8 +4,6 @@ from collections.abc import Callable
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.services import billing_webhook
 
@@ -57,7 +55,9 @@ def _make_subscription_obj(
     sub_status: str = "active",
     current_period_end: int | None = None,
 ) -> SimpleNamespace:
-    return SimpleNamespace(id=sub_id, status=sub_status, current_period_end=current_period_end)
+    return SimpleNamespace(
+        id=sub_id, status=sub_status, current_period_end=current_period_end
+    )
 
 
 class TestCheckoutSessionCompletedTopup:
@@ -215,7 +215,11 @@ class TestInvoicePaid:
     ) -> None:
         """invoice.paid with billing_reason=subscription_cycle grants renewal credits."""
         org = make_org()
-        inv = _make_invoice(billing_reason="subscription_cycle", subscription="sub_001", inv_id="inv_123")
+        inv = _make_invoice(
+            billing_reason="subscription_cycle",
+            subscription="sub_001",
+            inv_id="inv_123",
+        )
 
         sub_row = MagicMock()
         sub_row.org_id = org.id

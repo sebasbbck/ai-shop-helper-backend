@@ -3,7 +3,6 @@
 from collections.abc import Callable
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
 import sqlalchemy.exc
 
 from ai_shop_helper_backend.models.orgs import Org
@@ -59,7 +58,9 @@ class TestFulfillTopupPath:
             "ai_shop_helper_backend.services.billing_fulfillment.billing.grant_purchased",
             new_callable=AsyncMock,
         ) as mock_grant:
-            await fulfill(mock_session, org, kind="topup", credits=100, dedupe_key=dedupe)
+            await fulfill(
+                mock_session, org, kind="topup", credits=100, dedupe_key=dedupe
+            )
 
         _, kwargs = mock_grant.call_args
         assert kwargs.get("stripe_event_id") == dedupe
@@ -77,7 +78,9 @@ class TestFulfillTopupPath:
             "ai_shop_helper_backend.services.billing_fulfillment.billing.grant_purchased",
             new_callable=AsyncMock,
         ) as mock_grant:
-            await fulfill(mock_session, org, kind="topup", credits=500, dedupe_key="cs_topup_1")
+            await fulfill(
+                mock_session, org, kind="topup", credits=500, dedupe_key="cs_topup_1"
+            )
 
         assert mock_grant.call_args.args[2] == 500
 

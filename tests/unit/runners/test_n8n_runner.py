@@ -17,8 +17,12 @@ def _make_runner(handler: httpx.MockTransport) -> N8nRunner:
 
 
 class TestN8nRunnerAsyncAck:
-    async def test_async_ack_response_accepted_true(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_async_ack_response_accepted_true(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(202, json={"accepted": True})
@@ -37,8 +41,12 @@ class TestN8nRunnerAsyncAck:
         assert result.external_ref == TASK_ID
         assert result.error is None
 
-    async def test_async_ack_response_sync_output_none(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_async_ack_response_sync_output_none(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(202, json={"accepted": True})
@@ -55,10 +63,17 @@ class TestN8nRunnerAsyncAck:
 
 
 class TestN8nRunnerSyncFinalResponse:
-    async def test_sync_final_response_populates_sync_output(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_sync_final_response_populates_sync_output(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
-        final_body = {"success": True, "data": {"context_titles": ["Title A", "Title B"]}}
+        final_body = {
+            "success": True,
+            "data": {"context_titles": ["Title A", "Title B"]},
+        }
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(200, json=final_body)
@@ -75,8 +90,12 @@ class TestN8nRunnerSyncFinalResponse:
         assert result.sync_output == final_body
         assert result.external_ref == TASK_ID
 
-    async def test_sync_final_response_with_title_key(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_sync_final_response_with_title_key(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         final_body = {"title": "My Blog Post", "url_post": "https://example.com/post"}
 
@@ -95,8 +114,12 @@ class TestN8nRunnerSyncFinalResponse:
 
 
 class TestN8nRunnerErrors:
-    async def test_n8n_500_returns_accepted_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_n8n_500_returns_accepted_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         def handler(request: httpx.Request) -> httpx.Response:
             return httpx.Response(500, text="internal server error")
@@ -114,8 +137,12 @@ class TestN8nRunnerErrors:
         assert result.error is not None
         assert result.sync_output is None
 
-    async def test_transport_error_returns_accepted_false(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_transport_error_returns_accepted_false(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         def handler(request: httpx.Request) -> httpx.Response:
             raise httpx.ConnectError("connection refused")
@@ -135,8 +162,12 @@ class TestN8nRunnerErrors:
 
 
 class TestN8nRunnerPostShape:
-    async def test_post_url_is_n8n_url_webhook_runner_ref(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_post_url_is_n8n_url_webhook_runner_ref(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         captured: list[httpx.Request] = []
 
@@ -155,8 +186,12 @@ class TestN8nRunnerPostShape:
         assert len(captured) == 1
         assert str(captured[0].url) == f"{N8N_URL}/webhook/{RUNNER_REF}"
 
-    async def test_post_body_includes_task_id_callback_url_and_inputs(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL)
+    async def test_post_body_includes_task_id_callback_url_and_inputs(
+        self, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        monkeypatch.setattr(
+            "ai_shop_helper_backend.runners.n8n.settings.N8N_URL", N8N_URL
+        )
 
         captured: list[httpx.Request] = []
 

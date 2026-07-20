@@ -5,12 +5,10 @@ Session and auth_email are fully mocked; no live DB required.
 """
 
 import uuid
-from collections.abc import Callable
 from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi import HTTPException, Request, Response
-from fastapi.testclient import TestClient
 
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.routers.auth import (
@@ -51,7 +49,9 @@ def _make_request(cookies: dict | None = None, accept_language: str = "") -> Req
         "type": "http",
         "method": "POST",
         "path": "/",
-        "headers": [(b"accept-language", accept_language.encode())] if accept_language else [],
+        "headers": [(b"accept-language", accept_language.encode())]
+        if accept_language
+        else [],
         "query_string": b"",
     }
     request = Request(scope)
@@ -77,7 +77,9 @@ class TestEmailLocale:
 
     def test_next_locale_cookie_invalid_falls_through(self):
         """Unknown NEXT_LOCALE value falls through to Accept-Language."""
-        req = _make_request(cookies={"NEXT_LOCALE": "fr"}, accept_language="en-US,en;q=0.9")
+        req = _make_request(
+            cookies={"NEXT_LOCALE": "fr"}, accept_language="en-US,en;q=0.9"
+        )
         assert _email_locale(req) == "en"
 
     def test_accept_language_en_wins(self):
@@ -104,12 +106,23 @@ class TestRegister:
         mock_session = AsyncMock()
         user = _make_user(email_verified=False)
         request = _make_request(cookies={"NEXT_LOCALE": "en"})
-        user_in = UserCreate(email="new@example.com", name="New", password="password123")
+        user_in = UserCreate(
+            email="new@example.com", name="New", password="password123"
+        )
 
         with (
-            patch("ai_shop_helper_backend.routers.auth.users.get_user_by_email", return_value=None) as mock_get,
-            patch("ai_shop_helper_backend.routers.auth.users.create_user", return_value=user) as mock_create,
-            patch("ai_shop_helper_backend.routers.auth.auth_email.start_verification", new_callable=AsyncMock) as mock_start,
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.get_user_by_email",
+                return_value=None,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.create_user",
+                return_value=user,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth.auth_email.start_verification",
+                new_callable=AsyncMock,
+            ) as mock_start,
         ):
             result = await register(user_in, request, mock_session)
 
@@ -121,12 +134,23 @@ class TestRegister:
         mock_session = AsyncMock()
         user = _make_user(email_verified=False)
         request = _make_request()
-        user_in = UserCreate(email="new2@example.com", name="New2", password="password123")
+        user_in = UserCreate(
+            email="new2@example.com", name="New2", password="password123"
+        )
 
         with (
-            patch("ai_shop_helper_backend.routers.auth.users.get_user_by_email", return_value=None),
-            patch("ai_shop_helper_backend.routers.auth.users.create_user", return_value=user),
-            patch("ai_shop_helper_backend.routers.auth.auth_email.start_verification", new_callable=AsyncMock),
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.get_user_by_email",
+                return_value=None,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.create_user",
+                return_value=user,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth.auth_email.start_verification",
+                new_callable=AsyncMock,
+            ),
         ):
             result = await register(user_in, request, mock_session)
 
@@ -137,11 +161,19 @@ class TestRegister:
         mock_session = AsyncMock()
         existing_user = _make_user()
         request = _make_request()
-        user_in = UserCreate(email="existing@example.com", name="Dup", password="password123")
+        user_in = UserCreate(
+            email="existing@example.com", name="Dup", password="password123"
+        )
 
         with (
-            patch("ai_shop_helper_backend.routers.auth.users.get_user_by_email", return_value=existing_user),
-            patch("ai_shop_helper_backend.routers.auth.auth_email.start_verification", new_callable=AsyncMock) as mock_start,
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.get_user_by_email",
+                return_value=existing_user,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth.auth_email.start_verification",
+                new_callable=AsyncMock,
+            ) as mock_start,
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await register(user_in, request, mock_session)
@@ -164,7 +196,10 @@ class TestLogin:
         form_data.username = "test@example.com"
         form_data.password = "password123"
 
-        with patch("ai_shop_helper_backend.routers.auth.users.authenticate", return_value=unverified_user):
+        with patch(
+            "ai_shop_helper_backend.routers.auth.users.authenticate",
+            return_value=unverified_user,
+        ):
             from ai_shop_helper_backend.routers.auth import login
 
             with pytest.raises(HTTPException) as exc_info:
@@ -183,7 +218,9 @@ class TestLogin:
         form_data.username = "bad@example.com"
         form_data.password = "wrong"
 
-        with patch("ai_shop_helper_backend.routers.auth.users.authenticate", return_value=None):
+        with patch(
+            "ai_shop_helper_backend.routers.auth.users.authenticate", return_value=None
+        ):
             from ai_shop_helper_backend.routers.auth import login
 
             with pytest.raises(HTTPException) as exc_info:
@@ -207,8 +244,15 @@ class TestLogin:
         expected_token = Token(access_token="tok123")
 
         with (
-            patch("ai_shop_helper_backend.routers.auth.users.authenticate", return_value=verified_user),
-            patch("ai_shop_helper_backend.routers.auth._issue_tokens", new_callable=AsyncMock, return_value=expected_token),
+            patch(
+                "ai_shop_helper_backend.routers.auth.users.authenticate",
+                return_value=verified_user,
+            ),
+            patch(
+                "ai_shop_helper_backend.routers.auth._issue_tokens",
+                new_callable=AsyncMock,
+                return_value=expected_token,
+            ),
         ):
             from ai_shop_helper_backend.routers.auth import login
 
@@ -225,7 +269,10 @@ class TestVerifyEmail:
         mock_session = AsyncMock()
         body = VerifyEmailRequest(token="good-token")
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.verify", new_callable=AsyncMock) as mock_verify:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.verify",
+            new_callable=AsyncMock,
+        ) as mock_verify:
             result = await verify_email(body, mock_session)
 
         mock_verify.assert_awaited_once_with(mock_session, "good-token")
@@ -239,7 +286,9 @@ class TestVerifyEmail:
         with patch(
             "ai_shop_helper_backend.routers.auth.auth_email.verify",
             new_callable=AsyncMock,
-            side_effect=HTTPException(status_code=400, detail="Invalid or expired token"),
+            side_effect=HTTPException(
+                status_code=400, detail="Invalid or expired token"
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await verify_email(body, mock_session)
@@ -256,7 +305,10 @@ class TestResendVerification:
         body = ResendVerificationRequest(email="any@example.com")
         request = _make_request(cookies={"NEXT_LOCALE": "es"})
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.resend_verification", new_callable=AsyncMock) as mock_resend:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.resend_verification",
+            new_callable=AsyncMock,
+        ) as mock_resend:
             result = await resend_verification(body, request, mock_session)
 
         mock_resend.assert_awaited_once_with(mock_session, "any@example.com", "es")
@@ -268,7 +320,10 @@ class TestResendVerification:
         body = ResendVerificationRequest(email="ghost@example.com")
         request = _make_request()
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.resend_verification", new_callable=AsyncMock):
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.resend_verification",
+            new_callable=AsyncMock,
+        ):
             result = await resend_verification(body, request, mock_session)
 
         assert result.message is not None
@@ -279,7 +334,10 @@ class TestResendVerification:
         body = ResendVerificationRequest(email="x@example.com")
         request = _make_request(accept_language="en-US")
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.resend_verification", new_callable=AsyncMock) as mock_resend:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.resend_verification",
+            new_callable=AsyncMock,
+        ) as mock_resend:
             await resend_verification(body, request, mock_session)
 
         assert mock_resend.call_args.args[2] == "en"
@@ -294,7 +352,10 @@ class TestForgotPassword:
         body = ForgotPasswordRequest(email="any@example.com")
         request = _make_request(cookies={"NEXT_LOCALE": "en"})
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.start_password_reset", new_callable=AsyncMock) as mock_reset:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.start_password_reset",
+            new_callable=AsyncMock,
+        ) as mock_reset:
             result = await forgot_password(body, request, mock_session)
 
         mock_reset.assert_awaited_once_with(mock_session, "any@example.com", "en")
@@ -306,7 +367,10 @@ class TestForgotPassword:
         body = ForgotPasswordRequest(email="nobody@example.com")
         request = _make_request()
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.start_password_reset", new_callable=AsyncMock):
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.start_password_reset",
+            new_callable=AsyncMock,
+        ):
             result = await forgot_password(body, request, mock_session)
 
         assert result.message is not None
@@ -317,7 +381,10 @@ class TestForgotPassword:
         body = ForgotPasswordRequest(email="x@example.com")
         request = _make_request(cookies={"NEXT_LOCALE": "es"})
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.start_password_reset", new_callable=AsyncMock) as mock_reset:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.start_password_reset",
+            new_callable=AsyncMock,
+        ) as mock_reset:
             await forgot_password(body, request, mock_session)
 
         assert mock_reset.call_args.args[2] == "es"
@@ -331,7 +398,10 @@ class TestResetPassword:
         mock_session = AsyncMock()
         body = ResetPasswordRequest(token="good-token", new_password="newpassword1")
 
-        with patch("ai_shop_helper_backend.routers.auth.auth_email.reset_password", new_callable=AsyncMock) as mock_reset:
+        with patch(
+            "ai_shop_helper_backend.routers.auth.auth_email.reset_password",
+            new_callable=AsyncMock,
+        ) as mock_reset:
             result = await reset_password(body, mock_session)
 
         mock_reset.assert_awaited_once_with(mock_session, "good-token", "newpassword1")
@@ -345,7 +415,9 @@ class TestResetPassword:
         with patch(
             "ai_shop_helper_backend.routers.auth.auth_email.reset_password",
             new_callable=AsyncMock,
-            side_effect=HTTPException(status_code=400, detail="Invalid or expired token"),
+            side_effect=HTTPException(
+                status_code=400, detail="Invalid or expired token"
+            ),
         ):
             with pytest.raises(HTTPException) as exc_info:
                 await reset_password(body, mock_session)

@@ -32,6 +32,7 @@ def make_user() -> Callable[..., User]:
             "hashed_password": hash_password("password123"),
             "is_active": True,
             "is_superuser": False,
+            "email_verified": True,
         }
         defaults.update(kwargs)
         return User(**defaults)

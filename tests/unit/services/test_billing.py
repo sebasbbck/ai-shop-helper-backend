@@ -2,7 +2,7 @@
 
 import uuid
 from collections.abc import Callable
-from unittest.mock import AsyncMock, MagicMock, call, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -12,8 +12,8 @@ from ai_shop_helper_backend.services.billing import (
     BUCKET_PURCHASED,
     BUCKET_SUBSCRIPTION,
     REASON_EXPIRY,
-    REASON_SUBSCRIPTION_CYCLE,
     REASON_REFUND,
+    REASON_SUBSCRIPTION_CYCLE,
     debit_credits,
     get_balance,
     grant_purchased,
@@ -96,7 +96,9 @@ class TestGrantPurchased:
     ) -> None:
         """Test that grant_purchased adds amount, writes one ledger row with correct fields, and calls session.add(org)."""
         org = make_org(purchased_credits=50)
-        row = await grant_purchased(mock_session, org, amount=200, stripe_event_id="evt_abc")
+        row = await grant_purchased(
+            mock_session, org, amount=200, stripe_event_id="evt_abc"
+        )
 
         assert org.purchased_credits == 250
         assert isinstance(row, CreditTransaction)
@@ -120,7 +122,9 @@ class TestGrantPurchased:
         import json
 
         org = make_org()
-        row = await grant_purchased(mock_session, org, amount=100, meta={"pack": "starter"})
+        row = await grant_purchased(
+            mock_session, org, amount=100, meta={"pack": "starter"}
+        )
 
         assert row.metadata_json == json.dumps({"pack": "starter"})
 
@@ -334,7 +338,9 @@ class TestRefundCredits:
     ) -> None:
         """Test that refund_credits returns each amount to its original bucket with one row per bucket."""
         org = make_org(subscription_credits=0, purchased_credits=0)
-        await refund_credits(mock_session, org, from_sub=10, from_pur=50, reason=REASON_REFUND)
+        await refund_credits(
+            mock_session, org, from_sub=10, from_pur=50, reason=REASON_REFUND
+        )
 
         assert org.subscription_credits == 10
         assert org.purchased_credits == 50
