@@ -21,6 +21,7 @@ from ai_shop_helper_backend.models.agent_runs import (
     RunnerType,
     RunStatus,
 )
+from ai_shop_helper_backend.models.connections import ConnectionType
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.users import User
 
@@ -32,6 +33,7 @@ def _make_step(
     runner_ref: str = "wf_ref",
     token_cost: int = 10,
     step_id: uuid.UUID | None = None,
+    connection_type: ConnectionType | None = None,
 ) -> AgentStep:
     return AgentStep(
         id=step_id or uuid.uuid4(),
@@ -41,6 +43,7 @@ def _make_step(
         runner_type=RunnerType.n8n,
         runner_ref=runner_ref,
         token_cost=token_cost,
+        connection_type=connection_type,
     )
 
 
@@ -904,16 +907,18 @@ class TestRunPreconditions:
 
         project = MagicMock(id=uuid.uuid4(), project_type_id=uuid.uuid4())
         agent_id = uuid.uuid4()
-        first_step = _make_step(agent_id, order=1)
+        first_step = _make_step(
+            agent_id, order=1, connection_type=ConnectionType.wordpress
+        )
 
         with (
             patch(
-                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
                 new_callable=AsyncMock,
-                return_value=MagicMock(connection_type="wordpress"),
+                return_value=[first_step],
             ),
             patch(
-                "ai_shop_helper_backend.services.agent_runs.conn_service.get_connection_by_project",
+                "ai_shop_helper_backend.services.agent_runs.conn_service.get_connection_by_project_and_type",
                 new_callable=AsyncMock,
                 return_value=None,
             ),
@@ -940,9 +945,9 @@ class TestRunPreconditions:
 
         with (
             patch(
-                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
                 new_callable=AsyncMock,
-                return_value=MagicMock(connection_type=None),
+                return_value=[first_step],
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs._get_project_agent_inputs_map",
@@ -970,9 +975,9 @@ class TestRunPreconditions:
 
         with (
             patch(
-                "ai_shop_helper_backend.services.agent_runs.project_types_service.get_project_type_by_id",
+                "ai_shop_helper_backend.services.agent_runs._get_steps_ordered",
                 new_callable=AsyncMock,
-                return_value=MagicMock(connection_type=None),
+                return_value=[first_step],
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs._get_inputs_for_agent",

@@ -14,7 +14,11 @@ class ConnectionType(enum.StrEnum):
 
 class Connection(UUIDMixin, TimestampMixin, SQLModel, table=True):
     __tablename__ = "connection"
-    __table_args__ = (UniqueConstraint("project_id"),)
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "connection_type", name="uq_connection_project_type"
+        ),
+    )
 
     project_id: uuid.UUID = Field(foreign_key="project.id", index=True)
     connection_type: ConnectionType = Field(

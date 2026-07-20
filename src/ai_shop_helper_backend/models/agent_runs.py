@@ -7,6 +7,7 @@ from sqlalchemy import JSON, Column, UniqueConstraint
 from sqlalchemy import Enum as SAEnum
 from sqlmodel import Field, SQLModel
 
+from ai_shop_helper_backend.models.connections import ConnectionType
 from ai_shop_helper_backend.models.mixins import CreatedAtMixin, UUIDMixin
 
 
@@ -48,6 +49,10 @@ class AgentStep(UUIDMixin, SQLModel, table=True):
     )
     runner_ref: str = Field(max_length=255)
     token_cost: int = Field(default=0)
+    connection_type: ConnectionType | None = Field(
+        default=None,
+        sa_column=Column(SAEnum(ConnectionType, name="connectiontype"), nullable=True),
+    )
 
 
 class AgentInput(UUIDMixin, SQLModel, table=True):

@@ -30,10 +30,7 @@ BASE_ROLES: list[tuple[str, int, str]] = [
     ("Member", 20, "Standard organization member."),
 ]
 
-BASE_PROJECT_TYPES: list[tuple[str, ConnectionType | None]] = [
-    ("WordPress", ConnectionType.wordpress),
-    ("PrestaShop", None),
-]
+BASE_PROJECT_TYPES: list[str] = ["WordPress", "PrestaShop"]
 
 
 async def _get_agent_step_by_slug(
@@ -106,6 +103,7 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
             runner_type=RunnerType.n8n,
             runner_ref="blog_generate",
             token_cost=1,
+            connection_type=ConnectionType.wordpress,
         )
         session.add(step_generate)
         await session.flush()
@@ -201,7 +199,7 @@ async def seed() -> None:
                     )
                 )
 
-        for type_name, conn_type in BASE_PROJECT_TYPES:
+        for type_name in BASE_PROJECT_TYPES:
             existing_pt = await project_types_service.get_project_type_by_name(
                 session, type_name
             )
@@ -209,14 +207,10 @@ async def seed() -> None:
                 session.add(
                     ProjectType(
                         name=type_name,
-                        connection_type=conn_type,
                         created_by=superuser.id,
                         updated_by=superuser.id,
                     )
                 )
-            elif existing_pt.connection_type != conn_type:
-                existing_pt.connection_type = conn_type
-                session.add(existing_pt)
 
         await session.flush()
 

@@ -27,7 +27,6 @@ from ai_shop_helper_backend.runners.base import StartResult
 from ai_shop_helper_backend.runners.registry import get_runner
 from ai_shop_helper_backend.services import billing
 from ai_shop_helper_backend.services import connections as conn_service
-from ai_shop_helper_backend.services import project_types as project_types_service
 from ai_shop_helper_backend.services.orgs import get_org_by_id
 from ai_shop_helper_backend.services.projects import get_project_by_id
 
@@ -80,21 +79,18 @@ async def _get_project_agent_inputs_map(
 
 
 async def _get_connection_injected_inputs(
-    session: AsyncSession, project_id: UUID
+    session: AsyncSession, project_id: UUID, step: AgentStep
 ) -> dict[str, str]:
-    project = await get_project_by_id(session, project_id)
-    if not project:
+    if step.connection_type is None:
         return {}
-    project_type = await project_types_service.get_project_type_by_id(
-        session, project.project_type_id
+    connection = await conn_service.get_connection_by_project_and_type(
+        session, project_id, step.connection_type
     )
-    if not project_type or not project_type.connection_type:
-        return {}
-    connection = await conn_service.get_connection_by_project(session, project_id)
     if not connection:
         return {}
-    provider = get_connection_provider(project_type.connection_type)
-    return await provider.get_injected_inputs(connection)
+    provider = get_connection_provider(step.connection_type)
+    credentials = await provider.get_credentials(session, connection)
+    return provider.to_injected_inputs(credentials)
 
 
 async def _resolve_inputs_for_step(
@@ -187,7 +183,7 @@ async def _start_step(
     run_step.started_at = datetime.now(UTC)
     session.add(run_step)
 
-    injected = await _get_connection_injected_inputs(session, run.project_id)
+    injected = await _get_connection_injected_inputs(session, run.project_id, step)
     outbound = {**resolved, **injected}
 
     callback_url = _build_callback_url(run.id, run_step.id)
@@ -360,11 +356,12 @@ async def _validate_run_preconditions(
     first_step: AgentStep,
     run_inputs: dict[str, str],
 ) -> None:
-    project_type = await project_types_service.get_project_type_by_id(
-        session, project.project_type_id
-    )
-    if project_type and project_type.connection_type:
-        connection = await conn_service.get_connection_by_project(session, project.id)
+    steps = await _get_steps_ordered(session, agent_id)
+    needed_types = {s.connection_type for s in steps if s.connection_type is not None}
+    for connection_type in needed_types:
+        connection = await conn_service.get_connection_by_project_and_type(
+            session, project.id, connection_type
+        )
         if not connection:
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT, detail="connection_required"

@@ -131,7 +131,9 @@ async def get_wordpress_status(
 ) -> WordpressStatusResponse:
     await _require_project_member(session, current_user, project_id)
 
-    connection = await conn_service.get_connection_by_project(session, project_id)
+    connection = await conn_service.get_connection_by_project_and_type(
+        session, project_id, ConnectionType.wordpress
+    )
     if not connection:
         return WordpressStatusResponse(connected=False)
 

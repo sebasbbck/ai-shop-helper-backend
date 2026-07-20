@@ -1,6 +1,7 @@
 import base64
 import json
 import uuid
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -29,7 +30,8 @@ class TestWordpressProvider:
             app_password="abc XYZ 123",
         )
         provider = WordpressProvider()
-        result = await provider.get_injected_inputs(connection)
+        credentials = await provider.get_credentials(AsyncMock(), connection)
+        result = provider.to_injected_inputs(credentials)
 
         assert result["url"] == "https://example.com"
 
@@ -40,7 +42,8 @@ class TestWordpressProvider:
             app_password="abc XYZ 123",
         )
         provider = WordpressProvider()
-        result = await provider.get_injected_inputs(connection)
+        credentials = await provider.get_credentials(AsyncMock(), connection)
+        result = provider.to_injected_inputs(credentials)
 
         expected = base64.b64encode(b"admin:abc XYZ 123").decode()
         assert result["auth_token"] == expected
@@ -52,7 +55,8 @@ class TestWordpressProvider:
             app_password="pw",
         )
         provider = WordpressProvider()
-        result = await provider.get_injected_inputs(connection)
+        credentials = await provider.get_credentials(AsyncMock(), connection)
+        result = provider.to_injected_inputs(credentials)
 
         assert set(result.keys()) == {"url", "auth_token"}
 
@@ -63,7 +67,8 @@ class TestWordpressProvider:
             app_password="p@ss word! 2026",
         )
         provider = WordpressProvider()
-        result = await provider.get_injected_inputs(connection)
+        credentials = await provider.get_credentials(AsyncMock(), connection)
+        result = provider.to_injected_inputs(credentials)
 
         raw = base64.b64decode(result["auth_token"]).decode()
         assert raw == "editor:p@ss word! 2026"
