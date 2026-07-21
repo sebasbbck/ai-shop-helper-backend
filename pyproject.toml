@@ -68,6 +68,7 @@ env = [
     "CRYPTOGRAPHIC_KEY=aAApUNaqnnOod-yiUqdHJi0WQhetffwN_NbEorz9Xmo=",
     "STRIPE_SECRET_KEY=sk_test_placeholder",
     "STRIPE_WEBHOOK_SECRET=whsec_test_placeholder",
+    "NOTIFUSE_API_KEY=nf_test_placeholder",
     "TESTCONTAINERS_RYUK_DISABLED=true",
 ]
 
