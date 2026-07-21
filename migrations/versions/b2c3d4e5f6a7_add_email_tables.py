@@ -5,7 +5,7 @@ Revises: a1b2c3d4e5f6
 Create Date: 2026-07-10 08:00:00.000000
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlmodel
@@ -34,8 +34,12 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("user_id", sa.Uuid(), nullable=False),
-        sa.Column("token", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
-        sa.Column("purpose", sqlmodel.sql.sqltypes.AutoString(length=32), nullable=False),
+        sa.Column(
+            "token", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
+        ),
+        sa.Column(
+            "purpose", sqlmodel.sql.sqltypes.AutoString(length=32), nullable=False
+        ),
         sa.Column("expires_at", sa.DateTime(), nullable=False),
         sa.Column("used_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["user.id"]),
@@ -59,11 +63,21 @@ def upgrade() -> None:
         "emailoutbox",
         sa.Column("created_at", sa.DateTime(), nullable=False),
         sa.Column("id", sa.Uuid(), nullable=False),
-        sa.Column("to_email", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
-        sa.Column("first_name", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=True),
-        sa.Column("email_type", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False),
-        sa.Column("locale", sqlmodel.sql.sqltypes.AutoString(length=16), nullable=False),
-        sa.Column("data_json", sqlmodel.sql.sqltypes.AutoString(length=8192), nullable=False),
+        sa.Column(
+            "to_email", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
+        ),
+        sa.Column(
+            "first_name", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=True
+        ),
+        sa.Column(
+            "email_type", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False
+        ),
+        sa.Column(
+            "locale", sqlmodel.sql.sqltypes.AutoString(length=16), nullable=False
+        ),
+        sa.Column(
+            "data_json", sqlmodel.sql.sqltypes.AutoString(length=8192), nullable=False
+        ),
         sa.Column(
             "external_id",
             sqlmodel.sql.sqltypes.AutoString(length=255),

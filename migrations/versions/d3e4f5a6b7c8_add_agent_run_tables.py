@@ -5,7 +5,7 @@ Revises: b2c3d4e5f6a7
 Create Date: 2026-07-14 09:00:00.000000
 """
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 import sqlmodel
@@ -51,7 +51,9 @@ def upgrade() -> None:
             runnertype,
             nullable=False,
         ),
-        sa.Column("runner_ref", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
+        sa.Column(
+            "runner_ref", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
+        ),
         sa.Column("token_cost", sa.Integer(), nullable=False, server_default="0"),
         sa.ForeignKeyConstraint(["agent_id"], ["agent.id"]),
         sa.PrimaryKeyConstraint("id"),
@@ -115,8 +117,12 @@ def upgrade() -> None:
         "projectagentinput",
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("project_id", sa.Uuid(), nullable=False),
-        sa.Column("input_key", sqlmodel.sql.sqltypes.AutoString(length=128), nullable=False),
-        sa.Column("value", sqlmodel.sql.sqltypes.AutoString(length=4096), nullable=False),
+        sa.Column(
+            "input_key", sqlmodel.sql.sqltypes.AutoString(length=128), nullable=False
+        ),
+        sa.Column(
+            "value", sqlmodel.sql.sqltypes.AutoString(length=4096), nullable=False
+        ),
         sa.ForeignKeyConstraint(["project_id"], ["project.id"]),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint(
@@ -142,7 +148,9 @@ def upgrade() -> None:
             nullable=False,
             server_default="pending",
         ),
-        sa.Column("current_step_order", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "current_step_order", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column(
             "error",
             sqlmodel.sql.sqltypes.AutoString(length=2048),
@@ -150,7 +158,9 @@ def upgrade() -> None:
         ),
         sa.Column("credits_debited", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("debited_sub", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("debited_purchased", sa.Integer(), nullable=False, server_default="0"),
+        sa.Column(
+            "debited_purchased", sa.Integer(), nullable=False, server_default="0"
+        ),
         sa.Column("created_by", sa.Uuid(), nullable=False),
         sa.Column("finished_at", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["agent_id"], ["agent.id"]),

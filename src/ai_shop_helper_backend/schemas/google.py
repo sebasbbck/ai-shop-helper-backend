@@ -1,21 +1,23 @@
-from datetime import datetime
-
 from sqlmodel import SQLModel
 
 
-class GoogleConnectResponse(SQLModel):
+class GoogleLoginResponse(SQLModel):
+    """Response containing the Google OAuth URL for login."""
+
     auth_url: str
 
 
-class GoogleStatusResponse(SQLModel):
+class GoogleConnectResponse(SQLModel):
+    """Response containing the Google OAuth URL to connect a project's data access."""
+
+    auth_url: str
+
+
+class GoogleConnectionStatusResponse(SQLModel):
+    """Connection status for a project — never includes tokens."""
+
     connected: bool
     google_email: str | None = None
-    token_expires_at: datetime | None = None
-
-
-class GoogleCallbackSuccess(SQLModel):
-    message: str
-    google_email: str
 
 
 class GA4ReportRequest(SQLModel):

@@ -1,9 +1,11 @@
 from ai_shop_helper_backend.connections.base import ConnectionProvider
+from ai_shop_helper_backend.connections.google import GoogleConnectionProvider
 from ai_shop_helper_backend.connections.wordpress import WordpressProvider
 from ai_shop_helper_backend.models.connections import ConnectionType
 
 _registry: dict[ConnectionType, ConnectionProvider] = {
     ConnectionType.wordpress: WordpressProvider(),
+    ConnectionType.google: GoogleConnectionProvider(),
 }
 
 

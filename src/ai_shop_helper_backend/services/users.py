@@ -57,7 +57,9 @@ async def get_users(
 
 
 async def create_google_user(session: AsyncSession, name: str, email: str) -> User:
-    """Create a new user from Google OAuth (no password login possible).
+    """Create a new user from a Google login (no password login possible).
+
+    The email is already verified by Google, so the user is created verified.
 
     Args:
         session (AsyncSession): The database session.
@@ -73,6 +75,7 @@ async def create_google_user(session: AsyncSession, name: str, email: str) -> Us
         email=email,
         name=name,
         hashed_password=hash_password(_secrets.token_urlsafe(32)),
+        email_verified=True,
     )
     session.add(user)
     return user
