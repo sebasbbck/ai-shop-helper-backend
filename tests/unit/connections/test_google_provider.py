@@ -41,20 +41,8 @@ class TestBuildSecrets:
 
 
 class TestGoogleConnectionProvider:
-    async def test_get_injected_inputs_returns_access_token(self) -> None:
-        connection = _make_connection(
-            {"access_token": "live-token", "refresh_token": "rt"}
-        )
-        provider = GoogleConnectionProvider()
-
-        result = await provider.get_injected_inputs(connection)
-
-        assert result == {"access_token": "live-token"}
-
-
-class TestGetValidAccessToken:
-    async def test_returns_stored_token_when_not_expired(
-        self, mock_session: AsyncMock
+    async def test_get_credentials_returns_stored_token_when_not_expired(
+        self,
     ) -> None:
         secrets = google_conn.build_secrets(
             access_token="fresh-token",
@@ -64,19 +52,15 @@ class TestGetValidAccessToken:
             google_email="me@example.com",
         )
         connection = _make_connection(secrets)
-        with patch(
-            "ai_shop_helper_backend.connections.google.get_connection_by_project",
-            new_callable=AsyncMock,
-            return_value=connection,
-        ):
-            token = await google_conn.get_valid_access_token(
-                mock_session, connection.project_id
-            )
+        session = AsyncMock()
+        provider = GoogleConnectionProvider()
 
-        assert token == "fresh-token"
-        mock_session.add.assert_not_called()
+        credentials = await provider.get_credentials(session, connection)
 
-    async def test_refreshes_when_expired(self, mock_session: AsyncMock) -> None:
+        assert credentials["access_token"] == "fresh-token"
+        session.add.assert_not_called()
+
+    async def test_get_credentials_refreshes_when_expired(self) -> None:
         secrets = {
             "access_token": "stale-token",
             "refresh_token": "rt",
@@ -85,6 +69,8 @@ class TestGetValidAccessToken:
             "google_email": "me@example.com",
         }
         connection = _make_connection(secrets)
+        session = AsyncMock()
+        provider = GoogleConnectionProvider()
 
         refresh_response = AsyncMock()
         refresh_response.json = lambda: {
@@ -93,24 +79,46 @@ class TestGetValidAccessToken:
         }
         refresh_response.raise_for_status = lambda: None
 
-        with (
-            patch(
-                "ai_shop_helper_backend.connections.google.get_connection_by_project",
-                new_callable=AsyncMock,
-                return_value=connection,
-            ),
-            patch("httpx.AsyncClient.post", return_value=refresh_response),
+        with patch("httpx.AsyncClient.post", return_value=refresh_response):
+            credentials = await provider.get_credentials(session, connection)
+
+        assert credentials["access_token"] == "new-token"
+        session.add.assert_called_once_with(connection)
+
+    def test_to_injected_inputs_returns_access_token(self) -> None:
+        provider = GoogleConnectionProvider()
+
+        result = provider.to_injected_inputs(
+            {"access_token": "live-token", "refresh_token": "rt"}
+        )
+
+        assert result == {"access_token": "live-token"}
+
+
+class TestGetValidAccessToken:
+    async def test_returns_access_token(self, mock_session: AsyncMock) -> None:
+        secrets = google_conn.build_secrets(
+            access_token="fresh-token",
+            refresh_token="rt",
+            expires_in=3600,
+            scopes="",
+            google_email="me@example.com",
+        )
+        connection = _make_connection(secrets)
+        with patch(
+            "ai_shop_helper_backend.connections.google.get_connection_by_project_and_type",
+            new_callable=AsyncMock,
+            return_value=connection,
         ):
             token = await google_conn.get_valid_access_token(
                 mock_session, connection.project_id
             )
 
-        assert token == "new-token"
-        mock_session.add.assert_called_once_with(connection)
+        assert token == "fresh-token"
 
     async def test_raises_when_no_connection(self, mock_session: AsyncMock) -> None:
         with patch(
-            "ai_shop_helper_backend.connections.google.get_connection_by_project",
+            "ai_shop_helper_backend.connections.google.get_connection_by_project_and_type",
             new_callable=AsyncMock,
             return_value=None,
         ):

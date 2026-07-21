@@ -10,8 +10,10 @@ from ai_shop_helper_backend.connections.base import decode_secrets
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.crypto import encrypt
 from ai_shop_helper_backend.core.utils import get_datetime_utc
-from ai_shop_helper_backend.models.connections import Connection
-from ai_shop_helper_backend.services.connections import get_connection_by_project
+from ai_shop_helper_backend.models.connections import Connection, ConnectionType
+from ai_shop_helper_backend.services.connections import (
+    get_connection_by_project_and_type,
+)
 
 FULL_SCOPES = (
     "openid email profile "
@@ -88,14 +90,14 @@ def build_secrets(
     }
 
 
-async def _refresh_access_token(secrets: dict) -> dict:
+async def _refresh_access_token(credentials: dict) -> dict:
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "https://oauth2.googleapis.com/token",
             data={
                 "client_id": settings.GOOGLE_CLIENT_ID,
                 "client_secret": settings.GOOGLE_CLIENT_SECRET,
-                "refresh_token": secrets["refresh_token"],
+                "refresh_token": credentials["refresh_token"],
                 "grant_type": "refresh_token",
             },
             headers={"Content-Type": "application/x-www-form-urlencoded"},
@@ -106,38 +108,11 @@ async def _refresh_access_token(secrets: dict) -> dict:
     expires_at = get_datetime_utc() + timedelta(
         seconds=int(token_data.get("expires_in", 3600)) - _TOKEN_REFRESH_BUFFER_SECONDS
     )
-    secrets["access_token"] = token_data["access_token"]
-    secrets["token_expires_at"] = expires_at.isoformat()
+    credentials["access_token"] = token_data["access_token"]
+    credentials["token_expires_at"] = expires_at.isoformat()
     if token_data.get("refresh_token"):
-        secrets["refresh_token"] = token_data["refresh_token"]
-    return secrets
-
-
-async def get_valid_access_token(session: AsyncSession, project_id: UUID) -> str:
-    """Return a valid Google access token for the project's connection, refreshing if needed.
-
-    Args:
-        session (AsyncSession): The database session.
-        project_id (UUID): The project ID.
-
-    Returns:
-        str: A valid Google access token.
-
-    Raises:
-        ValueError: If the project has no Google connection.
-    """
-    connection = await get_connection_by_project(session, project_id)
-    if not connection:
-        raise ValueError("Google account not connected")
-
-    secrets = decode_secrets(connection)
-    expires_at = datetime.fromisoformat(secrets["token_expires_at"])
-    if expires_at <= get_datetime_utc():
-        secrets = await _refresh_access_token(secrets)
-        connection.secrets_encrypted = encrypt(json.dumps(secrets))
-        session.add(connection)
-
-    return secrets["access_token"]
+        credentials["refresh_token"] = token_data["refresh_token"]
+    return credentials
 
 
 async def google_get(access_token: str, url: str, params: dict | None = None) -> dict:
@@ -159,8 +134,45 @@ async def google_post(access_token: str, url: str, payload: dict) -> dict:
 
 
 class GoogleConnectionProvider:
-    """Implements ConnectionProvider — exposes a Google access token for agent-run injection."""
+    """Implements ConnectionProvider for GA4/Search Console access."""
 
-    async def get_injected_inputs(self, connection: Connection) -> dict[str, str]:
-        secrets = decode_secrets(connection)
-        return {"access_token": secrets["access_token"]}
+    async def get_credentials(
+        self, session: AsyncSession, connection: Connection
+    ) -> dict:
+        """Return valid Google credentials, refreshing and persisting them if needed."""
+        credentials = decode_secrets(connection)
+        expires_at = datetime.fromisoformat(credentials["token_expires_at"])
+        if expires_at <= get_datetime_utc():
+            credentials = await _refresh_access_token(credentials)
+            connection.secrets_encrypted = encrypt(json.dumps(credentials))
+            session.add(connection)
+        return credentials
+
+    def to_injected_inputs(self, credentials: dict) -> dict[str, str]:
+        return {"access_token": credentials["access_token"]}
+
+
+async def get_valid_access_token(session: AsyncSession, project_id: UUID) -> str:
+    """Return a valid Google access token for the project's connection.
+
+    Convenience wrapper around GoogleConnectionProvider for the GA4/Search
+    Console proxy endpoints, which need the raw token rather than injected inputs.
+
+    Args:
+        session (AsyncSession): The database session.
+        project_id (UUID): The project ID.
+
+    Returns:
+        str: A valid Google access token.
+
+    Raises:
+        ValueError: If the project has no Google connection.
+    """
+    connection = await get_connection_by_project_and_type(
+        session, project_id, ConnectionType.google
+    )
+    if not connection:
+        raise ValueError("Google account not connected")
+
+    credentials = await GoogleConnectionProvider().get_credentials(session, connection)
+    return credentials["access_token"]

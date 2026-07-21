@@ -1,7 +1,7 @@
 """Add google_account table (login identity link only, no tokens)
 
 Revision ID: 3eedd5652a02
-Revises: a6b7c8d9e0f1
+Revises: e29a470776e6
 Create Date: 2026-07-20 00:00:00.000000
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "3eedd5652a02"
-down_revision: str | Sequence[str] | None = "a6b7c8d9e0f1"
+down_revision: str | Sequence[str] | None = "e29a470776e6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

@@ -264,8 +264,10 @@ async def get_google_connection_status(
 ) -> GoogleConnectionStatusResponse:
     await _require_project_member(session, current_user, project_id)
 
-    connection = await conn_service.get_connection_by_project(session, project_id)
-    if not connection or connection.connection_type != ConnectionType.google:
+    connection = await conn_service.get_connection_by_project_and_type(
+        session, project_id, ConnectionType.google
+    )
+    if not connection:
         return GoogleConnectionStatusResponse(connected=False)
 
     secrets_data = decode_secrets(connection)
