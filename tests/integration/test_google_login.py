@@ -134,5 +134,14 @@ class TestGoogleCallback:
             )
 
         assert response.headers["location"] == settings.GOOGLE_LOGIN_SUCCESS_URL
-        await session.refresh(existing)
-        assert existing.email_verified is True
+
+        from sqlmodel import select
+
+        from ai_shop_helper_backend.models.users import User as UserModel
+
+        result = await session.exec(
+            select(UserModel).where(UserModel.email == existing.email)
+        )
+        refreshed = result.first()
+        assert refreshed is not None
+        assert refreshed.email_verified is True

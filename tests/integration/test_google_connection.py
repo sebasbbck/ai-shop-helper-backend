@@ -24,7 +24,12 @@ _GOOGLE_TOKEN_RESPONSE = {
 
 
 async def _make_project(session: AsyncSession, owner: User) -> Project:
-    role = Role(name=f"owner-{uuid.uuid4()}", access_level=0)
+    role = Role(
+        name=f"owner-{uuid.uuid4()}",
+        access_level=0,
+        created_by=owner.id,
+        updated_by=owner.id,
+    )
     session.add(role)
     await session.flush()
 
