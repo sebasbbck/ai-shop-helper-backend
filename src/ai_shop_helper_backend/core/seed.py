@@ -90,6 +90,7 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
             runner_type=RunnerType.n8n,
             runner_ref="blog_titles",
             token_cost=0,
+            connection_type=ConnectionType.wordpress,
         )
         session.add(step_titles)
         await session.flush()
