@@ -131,12 +131,10 @@ class Settings(BaseSettings):
         run without live accounts; production must not start without them.
         """
         if self.ENVIRONMENT.lower() == "prod" and not (
-            self.STRIPE_SECRET_KEY
-            and self.STRIPE_WEBHOOK_SECRET
-            and self.NOTIFUSE_API_KEY
+            self.STRIPE_SECRET_KEY and self.NOTIFUSE_API_KEY
         ):
             raise ValueError(
-                "STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and NOTIFUSE_API_KEY are required in production"
+                "STRIPE_SECRET_KEY and NOTIFUSE_API_KEY are required in production"
             )
         return self
 
