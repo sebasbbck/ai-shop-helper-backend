@@ -16,18 +16,15 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+    env:
+      ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     steps:
       - name: 📦 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🌍 Set environment variables
+      - name: 🌍 Set resource names
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            ENVIRONMENT=prod
-          else
-            ENVIRONMENT=dev
-          fi
-          echo "ENVIRONMENT=${ENVIRONMENT}" >> $GITHUB_ENV
           echo "ECR_REPOSITORY=${ENVIRONMENT}-ai-shop-helper-backend-ecr" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_MIGRATE=${ENVIRONMENT}-ai-shop-helper-migrate-ecr" >> $GITHUB_ENV
           echo "ECS_CLUSTER=${ENVIRONMENT}-ai-shop-helper-cluster" >> $GITHUB_ENV
@@ -75,7 +72,7 @@ jobs:
 
       - name: ☁️ Upload openapi.json to S3
         run: |
-          aws s3 cp openapi.json s3://ai-shop-helper-dev/openapi/openapi.json \
+          aws s3 cp openapi.json s3://ai-shop-helper-${{ env.ENVIRONMENT }}/openapi/openapi.json \
             --region ${{ secrets.AWS_REGION }} \
             --content-type application/json
 
