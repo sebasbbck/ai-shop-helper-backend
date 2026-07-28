@@ -35,11 +35,12 @@ def verify_password(plain: str, hashed: str) -> bool:
     return pwd_hash.verify(plain, hashed)
 
 
-def create_access_token(subject: str) -> str:
+def create_access_token(subject: str, is_superuser: bool) -> str:
     """Create a JWT access token.
 
     Args:
         subject (str): The subject (i.e., user ID) to include in the token payload.
+        is_superuser (bool): Whether the user is a superuser.
 
     Returns:
         str: The generated JWT access token.
@@ -47,7 +48,7 @@ def create_access_token(subject: str) -> str:
     now = get_datetime_utc()
     expire = now + timedelta(minutes=settings.ACCESS_TOKEN_EXPIRE_MINUTES)
     return jwt.encode(
-        {"sub": subject, "iat": now, "exp": expire},
+        {"sub": subject, "iat": now, "exp": expire, "is_superuser": is_superuser},
         settings.SECRET_KEY,
         algorithm=settings.KEY_ALGORITHM,
     )

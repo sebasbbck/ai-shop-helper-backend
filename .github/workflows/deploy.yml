@@ -16,17 +16,15 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    environment: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+    env:
+      ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
     steps:
       - name: 📦 Checkout code
         uses: actions/checkout@v4
 
-      - name: 🌍 Set environment variables
+      - name: 🌍 Set resource names
         run: |
-          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
-            echo "ENVIRONMENT=prod" >> $GITHUB_ENV
-          else
-            echo "ENVIRONMENT=dev" >> $GITHUB_ENV
-          fi
           echo "ECR_REPOSITORY=${ENVIRONMENT}-ai-shop-helper-backend-ecr" >> $GITHUB_ENV
           echo "ECR_REPOSITORY_MIGRATE=${ENVIRONMENT}-ai-shop-helper-migrate-ecr" >> $GITHUB_ENV
           echo "ECS_CLUSTER=${ENVIRONMENT}-ai-shop-helper-cluster" >> $GITHUB_ENV
@@ -59,12 +57,22 @@ jobs:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           IMAGE_TAG: ${{ github.sha }}
         run: |
-          docker run --rm $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
+          docker run --rm \
+            -e SECRET_KEY=dummy \
+            -e DB_HOST=dummy \
+            -e DB_PORT=5432 \
+            -e DB_USERNAME=dummy \
+            -e DB_PASSWORD=dummy \
+            -e DB_NAME=dummy \
+            -e N8N_URL=http://dummy \
+            -e BACKEND_URL=http://dummy \
+            -e CRYPTOGRAPHIC_KEY=dummy \
+            $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG \
             python -c "from ai_shop_helper_backend.main import app; import json; print(json.dumps(app.openapi(), indent=2))" > openapi.json
 
       - name: ☁️ Upload openapi.json to S3
         run: |
-          aws s3 cp openapi.json s3://ai-shop-helper-dev/openapi/openapi.json \
+          aws s3 cp openapi.json s3://ai-shop-helper-${{ env.ENVIRONMENT }}/openapi/openapi.json \
             --region ${{ secrets.AWS_REGION }} \
             --content-type application/json
 
@@ -100,7 +108,12 @@ jobs:
           task-definition: ${{ steps.render-migrate.outputs.task-definition }}
           cluster: ${{ env.ECS_CLUSTER }}
           run-task: true
+          run-task-subnets: ${{ secrets.PRIVATE_SUBNET_IDS }}
+          run-task-security-groups: ${{ secrets.BACKEND_SECURITY_GROUP_ID }}
+          run-task-assign-public-IP: DISABLED
           wait-for-task-stopped: true
+          wait-for-service-stability: true
+          wait-for-minutes: 10
 
       - name: 📥 Download app task definition
         run: |
