@@ -125,30 +125,41 @@ async def seed_products() -> None:
     try:
         for t in SUBSCRIPTION_TIERS:
             lookup = stripe_lookup_key(t.key)
+            metadata = {
+                "plan_key": t.key,
+                "kind": "subscription",
+                "credits": str(t.credits),
+            }
             existing = await stripe.Price.list_async(lookup_keys=[lookup], limit=1)
-            if existing.data:
+            current = existing.data[0] if existing.data else None
+
+            if current is not None and current.unit_amount == t.unit_amount:
                 continue
 
-            product = await stripe.Product.create_async(
-                name=f"AI Shop Helper — {t.name}",
-                metadata={
-                    "plan_key": t.key,
-                    "kind": "subscription",
-                    "credits": str(t.credits),
-                },
-            )
-            await stripe.Price.create_async(
-                product=product.id,
-                currency=CURRENCY,
-                unit_amount=t.unit_amount,
-                recurring={"interval": "month"},
-                lookup_key=lookup,
-                metadata={
-                    "plan_key": t.key,
-                    "kind": "subscription",
-                    "credits": str(t.credits),
-                },
-            )
+            if current is None:
+                product = await stripe.Product.create_async(
+                    name=f"AI Shop Helper — {t.name}",
+                    metadata=metadata,
+                )
+                product_id = product.id
+            else:
+                product_id = current.product
+
+            price_args: dict = {
+                "product": product_id,
+                "currency": CURRENCY,
+                "unit_amount": t.unit_amount,
+                "recurring": {"interval": "month"},
+                "lookup_key": lookup,
+                "metadata": metadata,
+            }
+            if current is not None:
+                price_args["transfer_lookup_key"] = True
+
+            await stripe.Price.create_async(**price_args)
+
+            if current is not None:
+                await stripe.Price.modify_async(current.id, active=False)
 
         topup_existing = await stripe.Price.list_async(
             lookup_keys=[TOPUP_LOOKUP_KEY], limit=1

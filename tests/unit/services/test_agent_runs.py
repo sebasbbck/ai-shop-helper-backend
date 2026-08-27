@@ -16,6 +16,7 @@ from ai_shop_helper_backend.models.agent_runs import (
     AgentRun,
     AgentRunStep,
     AgentStep,
+    AgentStepCharge,
     InputScope,
     InputType,
     RunnerType,
@@ -158,6 +159,15 @@ class TestCreateRun:
             patch(
                 "ai_shop_helper_backend.services.agent_runs.get_org_by_id",
                 return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_step_charges",
+                new_callable=AsyncMock,
+                return_value=[
+                    AgentStepCharge(
+                        step_id=step1.id, order=0, reason="agent_run", credits=10
+                    )
+                ],
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
@@ -338,6 +348,15 @@ class TestCreateRun:
                 return_value=None,
             ),
             patch(
+                "ai_shop_helper_backend.services.agent_runs._get_step_charges",
+                new_callable=AsyncMock,
+                return_value=[
+                    AgentStepCharge(
+                        step_id=step1.id, order=0, reason="agent_run", credits=10
+                    )
+                ],
+            ),
+            patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
                 new_callable=AsyncMock,
                 side_effect=HTTPException(
@@ -383,6 +402,15 @@ class TestCreateRun:
             patch(
                 "ai_shop_helper_backend.services.agent_runs.get_org_by_id",
                 return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_step_charges",
+                new_callable=AsyncMock,
+                return_value=[
+                    AgentStepCharge(
+                        step_id=step1.id, order=0, reason="agent_run", credits=10
+                    )
+                ],
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",
@@ -1072,6 +1100,15 @@ class TestPerStepDebit:
                 "ai_shop_helper_backend.services.agent_runs._get_run_org",
                 new_callable=AsyncMock,
                 return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_step_charges",
+                new_callable=AsyncMock,
+                return_value=[
+                    AgentStepCharge(
+                        step_id=step.id, order=0, reason="agent_run", credits=5
+                    )
+                ],
             ),
             patch(
                 "ai_shop_helper_backend.services.agent_runs.billing.debit_credits",

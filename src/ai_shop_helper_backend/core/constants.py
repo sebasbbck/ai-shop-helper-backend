@@ -11,7 +11,7 @@ class AccessLevel:
 
 
 CURRENCY = "eur"
-FREE_TIER_CREDITS = 50
+FREE_TIER_CREDITS = 120
 
 
 @dataclass(frozen=True)
@@ -34,7 +34,7 @@ PROJECT_CONTEXT_KEYS = {f.key for f in PROJECT_CONTEXT_FIELDS}
 TOPUP_LOOKUP_KEY = "aish_topup"
 TOPUP_MIN_AMOUNT = 500
 TOPUP_MAX_AMOUNT = 50000
-TOPUP_CENTS_PER_CREDIT = 10
+TOPUP_CENTS_PER_CREDIT = 1
 
 
 @dataclass(frozen=True)
@@ -48,8 +48,9 @@ class SubscriptionTier:
 
 
 SUBSCRIPTION_TIERS: list[SubscriptionTier] = [
-    SubscriptionTier("starter", "Starter", 500, 1900),
-    SubscriptionTier("pro", "Pro", 2000, 5900),
+    SubscriptionTier("pro", "Pro", 2500, 2000),
+    SubscriptionTier("business", "Business", 8000, 5000),
+    SubscriptionTier("enterprise", "Enterprise", 20000, 12000),
 ]
 
 SUB_BY_KEY: dict[str, SubscriptionTier] = {t.key: t for t in SUBSCRIPTION_TIERS}
