@@ -56,6 +56,22 @@ SUBSCRIPTION_TIERS: list[SubscriptionTier] = [
 SUB_BY_KEY: dict[str, SubscriptionTier] = {t.key: t for t in SUBSCRIPTION_TIERS}
 
 
+@dataclass(frozen=True)
+class ReferralReward:
+    """Configurable referral reward granted when a referral qualifies."""
+
+    referrer_credits: int
+    referee_credits: int
+    monthly_cap: int
+
+
+REFERRAL_REWARD = ReferralReward(
+    referrer_credits=500,
+    referee_credits=250,
+    monthly_cap=10,
+)
+
+
 def stripe_lookup_key(key: str) -> str:
     """Return the Stripe lookup key for a tier key."""
     return f"aish_{key}"
