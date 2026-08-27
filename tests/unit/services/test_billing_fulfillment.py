@@ -1,12 +1,23 @@
 """Unit tests for services/billing_fulfillment.py — all DB and service calls mocked."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 import sqlalchemy.exc
 
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.services.billing_fulfillment import fulfill
+
+
+@pytest.fixture(autouse=True)
+def _stub_referral_hook() -> Generator[AsyncMock, None, None]:
+    """Isolate fulfill from the referral reward hook it calls on success."""
+    with patch(
+        "ai_shop_helper_backend.services.billing_fulfillment.referrals.on_org_paid",
+        new_callable=AsyncMock,
+    ) as hook:
+        yield hook
 
 
 class TestFulfillTopupPath:

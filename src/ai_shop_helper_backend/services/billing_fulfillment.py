@@ -9,7 +9,7 @@ from ai_shop_helper_backend.models.billing import (
     StripeSubscription,
 )
 from ai_shop_helper_backend.models.orgs import Org
-from ai_shop_helper_backend.services import billing
+from ai_shop_helper_backend.services import billing, referrals
 
 
 async def fulfill(
@@ -80,4 +80,5 @@ async def fulfill(
             meta={"plan_key": plan_key},
         )
 
+    await referrals.on_org_paid(session, org.id)
     return True

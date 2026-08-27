@@ -18,7 +18,7 @@ from ai_shop_helper_backend.schemas.auth import (
     VerifyEmailRequest,
 )
 from ai_shop_helper_backend.schemas.users import UserCreate, UserPublic
-from ai_shop_helper_backend.services import auth_email, users
+from ai_shop_helper_backend.services import auth_email, referrals, users
 from ai_shop_helper_backend.services.auth import issue_session
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -70,6 +70,8 @@ async def register(
         )
     user = await users.create_user(session, user_in)
     await session.flush()
+    if user_in.referral_code:
+        await referrals.record_signup(session, user_in.referral_code, user.id)
     await auth_email.start_verification(session, user, _email_locale(request))
     return UserPublic.model_validate(user)
 
