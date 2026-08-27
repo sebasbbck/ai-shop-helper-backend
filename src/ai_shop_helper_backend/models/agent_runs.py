@@ -55,6 +55,18 @@ class AgentStep(UUIDMixin, SQLModel, table=True):
     )
 
 
+class AgentStepCharge(UUIDMixin, SQLModel, table=True):
+    __tablename__ = "agentstepcharge"
+    __table_args__ = (
+        UniqueConstraint("step_id", "reason", name="uq_agentstepcharge_step_reason"),
+    )
+
+    step_id: uuid.UUID = Field(foreign_key="agentstep.id", index=True)
+    order: int
+    reason: str = Field(max_length=64)
+    credits: int
+
+
 class AgentInput(UUIDMixin, SQLModel, table=True):
     __tablename__ = "agentinput"
 

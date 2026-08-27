@@ -89,7 +89,7 @@ class TestCheckoutSessionCompletedTopup:
         mock_fulfill.assert_awaited_once()
         call_kwargs = mock_fulfill.call_args.kwargs
         assert call_kwargs["kind"] == "topup"
-        assert call_kwargs["credits"] == 250
+        assert call_kwargs["credits"] == 2500
         assert call_kwargs["dedupe_key"] == "cs_cs_topup_01"
 
     async def test_topup_async_payment_succeeded_also_handled(
@@ -116,7 +116,7 @@ class TestCheckoutSessionCompletedTopup:
             await billing_webhook.handle_event(mock_session, event)
 
         mock_fulfill.assert_awaited_once()
-        assert mock_fulfill.call_args.kwargs["credits"] == 100
+        assert mock_fulfill.call_args.kwargs["credits"] == 1000
 
 
 class TestCheckoutSessionCompletedNotPaid:
@@ -152,7 +152,7 @@ class TestCheckoutSessionCompletedSubscription:
         org = make_org()
         cs = _make_cs(
             kind="subscription",
-            plan_key="starter",
+            plan_key="pro",
             cs_id="cs_sub_01",
             subscription="sub_stripe_01",
         )
@@ -174,8 +174,8 @@ class TestCheckoutSessionCompletedSubscription:
         mock_fulfill.assert_awaited_once()
         call_kwargs = mock_fulfill.call_args.kwargs
         assert call_kwargs["kind"] == "subscription"
-        assert call_kwargs["credits"] == 500
-        assert call_kwargs["plan_key"] == "starter"
+        assert call_kwargs["credits"] == 2500
+        assert call_kwargs["plan_key"] == "pro"
         assert call_kwargs["stripe_subscription_id"] == "sub_stripe_01"
         assert call_kwargs["dedupe_key"] == "cs_cs_sub_01"
 
