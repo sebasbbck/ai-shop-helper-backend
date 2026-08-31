@@ -80,3 +80,22 @@ def stripe_lookup_key(key: str) -> str:
 def credits_for_topup(amount_cents: int) -> int:
     """Return credits granted for a top-up of the given amount in cents."""
     return amount_cents // TOPUP_CENTS_PER_CREDIT
+
+
+class NotificationType:
+    """Notification type constants. Add new types here — no migration required."""
+
+    BILLING = "billing"
+    EXECUTION_FINISHED = "execution_finished"
+    SERVICE_CHANGE = "service_change"
+    USER_STATUS_CHANGE = "user_status_change"
+
+
+MUTABLE_NOTIFICATION_TYPES: frozenset[str] = frozenset(
+    {
+        NotificationType.EXECUTION_FINISHED,
+        NotificationType.SERVICE_CHANGE,
+        NotificationType.USER_STATUS_CHANGE,
+    }
+)
+"""Notification types users may mute. Types left out (e.g. BILLING) are always delivered."""
