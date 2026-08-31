@@ -70,6 +70,8 @@ env = [
     "STRIPE_SECRET_KEY=sk_test_placeholder",
     "STRIPE_WEBHOOK_SECRET=whsec_test_placeholder",
     "NOTIFUSE_API_KEY=nf_test_placeholder",
+    "GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com",
+    "GOOGLE_CLIENT_SECRET=test-client-secret",
     "TESTCONTAINERS_RYUK_DISABLED=true",
 ]
 
