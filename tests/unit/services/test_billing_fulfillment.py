@@ -1,12 +1,23 @@
 """Unit tests for services/billing_fulfillment.py — all DB and service calls mocked."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Generator
 from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 import sqlalchemy.exc
 
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.services.billing_fulfillment import fulfill
+
+
+@pytest.fixture(autouse=True)
+def _stub_referral_hook() -> Generator[AsyncMock, None, None]:
+    """Isolate fulfill from the referral reward hook it calls on success."""
+    with patch(
+        "ai_shop_helper_backend.services.billing_fulfillment.referrals.on_org_paid",
+        new_callable=AsyncMock,
+    ) as hook:
+        yield hook
 
 
 class TestFulfillTopupPath:
@@ -212,38 +223,45 @@ class TestConstantsHelpers:
     """Tests for constants helpers used by fulfillment and gateway."""
 
     def test_credits_for_topup_standard_amounts(self) -> None:
-        """credits_for_topup returns floor-divided credits at 10 cents each."""
+        """credits_for_topup returns floor-divided credits at 1 cent each."""
         from ai_shop_helper_backend.core.constants import credits_for_topup
 
-        assert credits_for_topup(2500) == 250
-        assert credits_for_topup(500) == 50
+        assert credits_for_topup(2500) == 2500
+        assert credits_for_topup(500) == 500
 
-    def test_credits_for_topup_truncates(self) -> None:
-        """credits_for_topup truncates fractional credits."""
+    def test_credits_for_topup_one_credit_per_cent(self) -> None:
+        """credits_for_topup grants one credit per cent."""
         from ai_shop_helper_backend.core.constants import credits_for_topup
 
-        assert credits_for_topup(1999) == 199
+        assert credits_for_topup(1999) == 1999
 
-    def test_sub_by_key_contains_starter_and_pro(self) -> None:
-        """SUB_BY_KEY contains starter and pro tiers."""
+    def test_sub_by_key_contains_tiers(self) -> None:
+        """SUB_BY_KEY holds pro/business/enterprise and no paid starter."""
         from ai_shop_helper_backend.core.constants import SUB_BY_KEY
 
-        assert "starter" in SUB_BY_KEY
-        assert "pro" in SUB_BY_KEY
+        assert "starter" not in SUB_BY_KEY
+        assert {"pro", "business", "enterprise"} <= set(SUB_BY_KEY)
 
-    def test_starter_tier_credits(self) -> None:
-        """Starter tier has 500 credits at 1900 cents."""
+    def test_business_tier_credits(self) -> None:
+        """Business tier has 8000 credits at 5000 cents."""
         from ai_shop_helper_backend.core.constants import SUB_BY_KEY
 
-        assert SUB_BY_KEY["starter"].credits == 500
-        assert SUB_BY_KEY["starter"].unit_amount == 1900
+        assert SUB_BY_KEY["business"].credits == 8000
+        assert SUB_BY_KEY["business"].unit_amount == 5000
+
+    def test_enterprise_tier_credits(self) -> None:
+        """Enterprise tier has 20000 credits at 12000 cents."""
+        from ai_shop_helper_backend.core.constants import SUB_BY_KEY
+
+        assert SUB_BY_KEY["enterprise"].credits == 20000
+        assert SUB_BY_KEY["enterprise"].unit_amount == 12000
 
     def test_pro_tier_credits(self) -> None:
-        """Pro tier has 2000 credits at 5900 cents."""
+        """Pro tier has 2500 credits at 2000 cents."""
         from ai_shop_helper_backend.core.constants import SUB_BY_KEY
 
-        assert SUB_BY_KEY["pro"].credits == 2000
-        assert SUB_BY_KEY["pro"].unit_amount == 5900
+        assert SUB_BY_KEY["pro"].credits == 2500
+        assert SUB_BY_KEY["pro"].unit_amount == 2000
 
     def test_stripe_lookup_key_format(self) -> None:
         """stripe_lookup_key prefixes tier key with 'aish_'."""
@@ -253,10 +271,10 @@ class TestConstantsHelpers:
         assert stripe_lookup_key("pro") == "aish_pro"
 
     def test_free_tier_credits(self) -> None:
-        """FREE_TIER_CREDITS is 50."""
+        """FREE_TIER_CREDITS is 120."""
         from ai_shop_helper_backend.core.constants import FREE_TIER_CREDITS
 
-        assert FREE_TIER_CREDITS == 50
+        assert FREE_TIER_CREDITS == 120
 
     def test_topup_lookup_key(self) -> None:
         """TOPUP_LOOKUP_KEY is 'aish_topup'."""

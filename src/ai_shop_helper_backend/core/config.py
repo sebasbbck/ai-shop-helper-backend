@@ -88,6 +88,16 @@ class Settings(BaseSettings):
     EMAIL_RESEND_MAX_PER_HOUR: int = 5
     EMAIL_POLL_INTERVAL_S: int = 5
     EMAIL_MAX_ATTEMPTS: int = 6
+    # Google OAuth — login
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8080/api/v1/google/callback"
+    GOOGLE_LOGIN_SUCCESS_URL: str = "http://localhost:3000/login/success"
+    GOOGLE_LOGIN_ERROR_URL: str = "http://localhost:3000/login/failure"
+    # Google OAuth — project connection (GA4 / Search Console data)
+    GOOGLE_CONNECTION_REDIRECT_URI: str = (
+        "http://localhost:8080/api/v1/connections/google/callback"
+    )
     # Other
     CORS_ORIGINS: Annotated[
         list[AnyUrl],
@@ -131,10 +141,12 @@ class Settings(BaseSettings):
         run without live accounts; production must not start without them.
         """
         if self.ENVIRONMENT.lower() == "prod" and not (
-            self.STRIPE_SECRET_KEY and self.NOTIFUSE_API_KEY
+            self.STRIPE_SECRET_KEY
+            and self.STRIPE_WEBHOOK_SECRET
+            and self.NOTIFUSE_API_KEY
         ):
             raise ValueError(
-                "STRIPE_SECRET_KEY and NOTIFUSE_API_KEY are required in production"
+                "STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET, and NOTIFUSE_API_KEY are required in production"
             )
         return self
 

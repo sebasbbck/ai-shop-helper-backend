@@ -1,7 +1,7 @@
 """Add notification and notification_preference tables
 
 Revision ID: 23560ae6402b
-Revises: f5a6b7c8d9e0
+Revises: 47cfa6311bb6
 Create Date: 2026-07-15 00:00:00.000000
 """
 
@@ -11,7 +11,7 @@ import sqlalchemy as sa
 from alembic import op
 
 revision: str = "23560ae6402b"
-down_revision: str | Sequence[str] | None = "f5a6b7c8d9e0"
+down_revision: str | Sequence[str] | None = "47cfa6311bb6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

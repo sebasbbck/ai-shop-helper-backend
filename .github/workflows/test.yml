@@ -10,6 +10,8 @@ jobs:
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: astral-sh/setup-uv@v5
 
@@ -20,4 +22,7 @@ jobs:
         run: uv run pre-commit run --all-files
 
       - name: Unit + integration tests
-        run: uv run pytest tests/ --cov-fail-under=80
+        run: uv run pytest tests/ --cov-fail-under=80 --cov-report=xml
+
+      - name: Patch coverage (new/changed lines)
+        run: uv run diff-cover coverage.xml --compare-branch=origin/${{ github.base_ref }} --fail-under=80

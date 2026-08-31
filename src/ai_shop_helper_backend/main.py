@@ -15,11 +15,13 @@ from ai_shop_helper_backend.routers import (
     auth,
     billing,
     connections,
+    google,
     notifications,
     org_users,
     orgs,
     project_types,
     projects,
+    referrals,
     roles,
     users,
 )
@@ -74,8 +76,13 @@ app.include_router(projects.user_router)
 app.include_router(billing.org_router)
 app.include_router(billing.catalog_router)
 
+# referrals
+app.include_router(referrals.org_router)
+app.include_router(referrals.public_router)
+
 app.include_router(auth.router)
 app.include_router(users.router)
+app.include_router(google.router)
 app.include_router(notifications.router)
 
 # agent runs

@@ -1,14 +1,19 @@
 import logging
-from urllib.parse import urlencode
+import secrets
+from datetime import timedelta
+from urllib.parse import quote, urlencode
 from uuid import UUID
 
-from fastapi import APIRouter, HTTPException, Query, status
+import jwt
+from fastapi import APIRouter, HTTPException, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.connections import google as google_conn
 from ai_shop_helper_backend.connections.base import decode_secrets
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
+from ai_shop_helper_backend.core.utils import get_datetime_utc
 from ai_shop_helper_backend.models.connections import ConnectionType
 from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.models.users import User
@@ -16,6 +21,13 @@ from ai_shop_helper_backend.schemas.connections import (
     WordpressStartBody,
     WordpressStartResponse,
     WordpressStatusResponse,
+)
+from ai_shop_helper_backend.schemas.google import (
+    GA4RealtimeRequest,
+    GA4ReportRequest,
+    GoogleConnectionStatusResponse,
+    GoogleConnectResponse,
+    SearchConsoleQueryRequest,
 )
 from ai_shop_helper_backend.services import connections as conn_service
 from ai_shop_helper_backend.services import org_users, projects
@@ -142,4 +154,248 @@ async def get_wordpress_status(
         connected=True,
         site_url=secrets.get("site_url"),
         username=secrets.get("username"),
+    )
+
+
+# ── Google (GA4 / Search Console) ───────────────────────────────────────────────
+
+_GOOGLE_STATE_EXPIRY_MINUTES = 10
+_GOOGLE_STATE_COOKIE = "oauth_connection_state"
+
+
+def _create_google_state(project_id: UUID) -> str:
+    now = get_datetime_utc()
+    payload = {
+        "project_id": str(project_id),
+        "nonce": secrets.token_urlsafe(8),
+        "exp": now + timedelta(minutes=_GOOGLE_STATE_EXPIRY_MINUTES),
+    }
+    return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.KEY_ALGORITHM)
+
+
+def _decode_google_state(state: str) -> dict | None:
+    try:
+        return jwt.decode(
+            state, settings.SECRET_KEY, algorithms=[settings.KEY_ALGORITHM]
+        )
+    except (jwt.PyJWTError, ValueError, KeyError):
+        return None
+
+
+@router.get("/google/{project_id}/start", response_model=GoogleConnectResponse)
+async def start_google_connection(
+    project_id: UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+    response: Response,
+) -> GoogleConnectResponse:
+    await _require_project_member(session, current_user, project_id)
+
+    state = _create_google_state(project_id)
+    response.set_cookie(
+        key=_GOOGLE_STATE_COOKIE,
+        value=state,
+        httponly=True,
+        secure=True,
+        samesite="lax",
+        max_age=_GOOGLE_STATE_EXPIRY_MINUTES * 60,
+    )
+    return GoogleConnectResponse(auth_url=google_conn.build_auth_url(state))
+
+
+@router.get("/google/callback")
+async def google_connection_callback(
+    code: str,
+    state: str,
+    request: Request,
+    session: SessionDep,
+) -> RedirectResponse:
+    success_url = settings.WP_SUCCESS_FRONTEND_URL
+    error_url = settings.WP_ERROR_FRONTEND_URL
+
+    stored_state = request.cookies.get(_GOOGLE_STATE_COOKIE)
+    if not stored_state or stored_state != state:
+        return RedirectResponse(url=f"{error_url}?code=invalid_state")
+
+    state_payload = _decode_google_state(state)
+    if state_payload is None:
+        return RedirectResponse(url=f"{error_url}?code=expired_state")
+
+    try:
+        token_data = await google_conn.exchange_code(code)
+        access_token = token_data["access_token"]
+        refresh_token = token_data.get("refresh_token")
+        if not refresh_token:
+            return RedirectResponse(url=f"{error_url}?code=no_refresh_token")
+        userinfo = await google_conn.get_userinfo(access_token)
+    except Exception:
+        logger.exception("Unexpected error in Google connection callback")
+        return RedirectResponse(url=f"{error_url}?code=error_unexpected")
+
+    project_id = UUID(state_payload["project_id"])
+    secrets_data = google_conn.build_secrets(
+        access_token=access_token,
+        refresh_token=refresh_token,
+        expires_in=int(token_data.get("expires_in", 3600)),
+        scopes=token_data.get("scope", ""),
+        google_email=userinfo.get("email", ""),
+    )
+    await conn_service.upsert_connection(
+        session,
+        project_id=project_id,
+        connection_type=ConnectionType.google,
+        secrets=secrets_data,
+    )
+    logger.info("Google connection established for project %s", project_id)
+
+    redirect = RedirectResponse(url=success_url)
+    redirect.delete_cookie(_GOOGLE_STATE_COOKIE)
+    return redirect
+
+
+@router.get(
+    "/google/{project_id}",
+    response_model=GoogleConnectionStatusResponse,
+)
+async def get_google_connection_status(
+    project_id: UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> GoogleConnectionStatusResponse:
+    await _require_project_member(session, current_user, project_id)
+
+    connection = await conn_service.get_connection_by_project_and_type(
+        session, project_id, ConnectionType.google
+    )
+    if not connection:
+        return GoogleConnectionStatusResponse(connected=False)
+
+    secrets_data = decode_secrets(connection)
+    return GoogleConnectionStatusResponse(
+        connected=True, google_email=secrets_data.get("google_email")
+    )
+
+
+async def _get_google_token(session: SessionDep, project_id: UUID) -> str:
+    try:
+        return await google_conn.get_valid_access_token(session, project_id)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Google account not connected for this project.",
+        )
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Failed to refresh Google access token",
+        )
+
+
+@router.get("/google/{project_id}/ga4/accounts")
+async def ga4_accounts(
+    project_id: UUID, current_user: CurrentUser, session: SessionDep
+) -> dict:
+    """List all GA4 accounts accessible by the project's connected Google account."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    return await google_conn.google_get(
+        token, "https://analyticsadmin.googleapis.com/v1beta/accounts"
+    )
+
+
+@router.get("/google/{project_id}/ga4/accounts/{account_id}/properties")
+async def ga4_properties(
+    project_id: UUID,
+    account_id: str,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """List GA4 properties for an account."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    return await google_conn.google_get(
+        token,
+        "https://analyticsadmin.googleapis.com/v1beta/properties",
+        params={"filter": f"parent:accounts/{account_id}"},
+    )
+
+
+@router.post("/google/{project_id}/ga4/properties/{property_id}/report")
+async def ga4_report(
+    project_id: UUID,
+    property_id: str,
+    body: GA4ReportRequest,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Run a GA4 Data API report."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    payload: dict = {"dateRanges": body.date_ranges, "metrics": body.metrics}
+    if body.dimensions:
+        payload["dimensions"] = body.dimensions
+    if body.limit:
+        payload["limit"] = body.limit
+    return await google_conn.google_post(
+        token,
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{property_id}:runReport",
+        payload,
+    )
+
+
+@router.post("/google/{project_id}/ga4/properties/{property_id}/realtime")
+async def ga4_realtime(
+    project_id: UUID,
+    property_id: str,
+    body: GA4RealtimeRequest,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Run a GA4 Realtime report."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    payload: dict = {"metrics": body.metrics}
+    if body.dimensions:
+        payload["dimensions"] = body.dimensions
+    if body.limit:
+        payload["limit"] = body.limit
+    return await google_conn.google_post(
+        token,
+        f"https://analyticsdata.googleapis.com/v1beta/properties/{property_id}:runRealtimeReport",
+        payload,
+    )
+
+
+@router.get("/google/{project_id}/search-console/sites")
+async def search_console_sites(
+    project_id: UUID, current_user: CurrentUser, session: SessionDep
+) -> dict:
+    """List all Search Console properties accessible by the project's connected Google account."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    return await google_conn.google_get(
+        token, "https://www.googleapis.com/webmasters/v3/sites"
+    )
+
+
+@router.post("/google/{project_id}/search-console/query")
+async def search_console_query(
+    project_id: UUID,
+    body: SearchConsoleQueryRequest,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> dict:
+    """Query Search Console search analytics."""
+    await _require_project_member(session, current_user, project_id)
+    token = await _get_google_token(session, project_id)
+    encoded_url = quote(body.site_url, safe="")
+    return await google_conn.google_post(
+        token,
+        f"https://www.googleapis.com/webmasters/v3/sites/{encoded_url}/searchAnalytics/query",
+        {
+            "startDate": body.start_date,
+            "endDate": body.end_date,
+            "dimensions": body.dimensions,
+            "rowLimit": body.row_limit,
+        },
     )

@@ -27,6 +27,7 @@ build-backend = "uv_build"
 dev = [
     "anyio>=4.12.1",
     "coverage>=7.13.4",
+    "diff-cover>=10.5.0",
     "gevent>=25.9.1",
     "pre-commit>=4.5.1",
     "pytest>=9.0.2",
@@ -70,6 +71,8 @@ env = [
     "STRIPE_SECRET_KEY=sk_test_placeholder",
     "STRIPE_WEBHOOK_SECRET=whsec_test_placeholder",
     "NOTIFUSE_API_KEY=nf_test_placeholder",
+    "GOOGLE_CLIENT_ID=test-client-id.apps.googleusercontent.com",
+    "GOOGLE_CLIENT_SECRET=test-client-secret",
     "TESTCONTAINERS_RYUK_DISABLED=true",
 ]
 

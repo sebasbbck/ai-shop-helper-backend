@@ -1,0 +1,45 @@
+from sqlmodel import SQLModel
+
+
+class GoogleLoginResponse(SQLModel):
+    """Response containing the Google OAuth URL for login."""
+
+    auth_url: str
+
+
+class GoogleConnectResponse(SQLModel):
+    """Response containing the Google OAuth URL to connect a project's data access."""
+
+    auth_url: str
+
+
+class GoogleConnectionStatusResponse(SQLModel):
+    """Connection status for a project — never includes tokens."""
+
+    connected: bool
+    google_email: str | None = None
+
+
+class GA4ReportRequest(SQLModel):
+    date_ranges: list[dict] = [{"startDate": "30daysAgo", "endDate": "today"}]
+    metrics: list[dict] = [
+        {"name": "sessions"},
+        {"name": "activeUsers"},
+        {"name": "screenPageViews"},
+    ]
+    dimensions: list[dict] = []
+    limit: int = 10
+
+
+class GA4RealtimeRequest(SQLModel):
+    metrics: list[dict] = [{"name": "activeUsers"}]
+    dimensions: list[dict] = [{"name": "country"}]
+    limit: int = 10
+
+
+class SearchConsoleQueryRequest(SQLModel):
+    site_url: str
+    start_date: str
+    end_date: str
+    dimensions: list[str] = ["query"]
+    row_limit: int = 10

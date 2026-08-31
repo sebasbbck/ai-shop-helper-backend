@@ -19,6 +19,7 @@ REASON_AGENT_RUN = "agent_run"
 REASON_ADJUSTMENT = "adjustment"
 REASON_REFUND = "refund"
 REASON_EXPIRY = "expiry"
+REASON_REFERRAL = "referral"
 
 
 async def get_balance(session: AsyncSession, org_id: UUID) -> Org | None:
