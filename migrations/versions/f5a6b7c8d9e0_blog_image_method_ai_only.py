@@ -1,4 +1,4 @@
-from collections.abc import Sequence
+from typing import Sequence
 
 from alembic import op
 

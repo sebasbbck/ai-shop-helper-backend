@@ -5,7 +5,7 @@ Revises: c7d1e9f2a3b4
 Create Date: 2026-07-06 08:00:00.000000
 """
 
-from collections.abc import Sequence
+from typing import Sequence
 
 import sqlalchemy as sa
 import sqlmodel
@@ -44,13 +44,9 @@ def upgrade() -> None:
         sa.Column("id", sa.Uuid(), nullable=False),
         sa.Column("org_id", sa.Uuid(), nullable=False),
         sa.Column("amount", sa.Integer(), nullable=False),
-        sa.Column(
-            "bucket", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False
-        ),
+        sa.Column("bucket", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False),
         sa.Column("balance_after", sa.Integer(), nullable=False),
-        sa.Column(
-            "reason", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False
-        ),
+        sa.Column("reason", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False),
         sa.Column(
             "stripe_event_id",
             sqlmodel.sql.sqltypes.AutoString(length=255),
@@ -131,13 +127,9 @@ def upgrade() -> None:
             sqlmodel.sql.sqltypes.AutoString(length=255),
             nullable=False,
         ),
-        sa.Column(
-            "price_id", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False
-        ),
+        sa.Column("price_id", sqlmodel.sql.sqltypes.AutoString(length=255), nullable=False),
         sa.Column("plan", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False),
-        sa.Column(
-            "status", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False
-        ),
+        sa.Column("status", sqlmodel.sql.sqltypes.AutoString(length=64), nullable=False),
         sa.Column("credits_per_cycle", sa.Integer(), nullable=False),
         sa.Column("current_period_end", sa.DateTime(), nullable=True),
         sa.ForeignKeyConstraint(["org_id"], ["org.id"]),
@@ -163,7 +155,9 @@ def downgrade() -> None:
         op.f("ix_stripesubscription_stripe_subscription_id"),
         table_name="stripesubscription",
     )
-    op.drop_index(op.f("ix_stripesubscription_org_id"), table_name="stripesubscription")
+    op.drop_index(
+        op.f("ix_stripesubscription_org_id"), table_name="stripesubscription"
+    )
     op.drop_table("stripesubscription")
 
     op.drop_index(
@@ -178,7 +172,9 @@ def downgrade() -> None:
     op.drop_index(op.f("ix_stripecustomer_org_id"), table_name="stripecustomer")
     op.drop_table("stripecustomer")
 
-    op.drop_index(op.f("ix_credittransaction_org_id"), table_name="credittransaction")
+    op.drop_index(
+        op.f("ix_credittransaction_org_id"), table_name="credittransaction"
+    )
     op.drop_table("credittransaction")
 
     op.drop_column("org", "purchased_credits")
