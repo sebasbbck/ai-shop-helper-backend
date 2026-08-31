@@ -89,8 +89,8 @@ class Settings(BaseSettings):
     EMAIL_POLL_INTERVAL_S: int = 5
     EMAIL_MAX_ATTEMPTS: int = 6
     # Google OAuth — login
-    GOOGLE_CLIENT_ID: str = Field(default=...)
-    GOOGLE_CLIENT_SECRET: str = Field(default=...)
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
     GOOGLE_LOGIN_REDIRECT_URI: str = "http://localhost:8080/api/v1/google/callback"
     GOOGLE_LOGIN_SUCCESS_URL: str = "http://localhost:3000/login/success"
     GOOGLE_LOGIN_ERROR_URL: str = "http://localhost:3000/login/failure"
