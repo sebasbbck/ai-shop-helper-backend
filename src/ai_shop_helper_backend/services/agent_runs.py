@@ -16,6 +16,7 @@ from ai_shop_helper_backend.models.agent_runs import (
     AgentRun,
     AgentRunStep,
     AgentStep,
+    AgentStepCharge,
     InputScope,
     ProjectAgentInput,
     RunStatus,
@@ -136,24 +137,45 @@ def _build_callback_url(run_id: UUID, step_id: UUID) -> str:
     )
 
 
+async def _get_step_charges(
+    session: AsyncSession, step: AgentStep
+) -> list[AgentStepCharge]:
+    result = await session.exec(
+        select(AgentStepCharge)
+        .where(AgentStepCharge.step_id == step.id)
+        .order_by(col(AgentStepCharge.order))
+    )
+    return [c for c in result.all() if c.credits > 0]
+
+
 async def _debit_step(session: AsyncSession, run: AgentRun, step: AgentStep) -> None:
-    if step.token_cost <= 0:
+    charges = await _get_step_charges(session, step)
+    if not charges:
         return
+
     org = await _get_run_org(session, run)
     if org is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="Organization not found"
         )
-    from_sub, from_pur = await billing.debit_credits(
-        session,
-        org,
-        step.token_cost,
-        reason=billing.REASON_AGENT_RUN,
-        meta={"run_id": str(run.id), "step": step.slug},
-    )
-    run.credits_debited += step.token_cost
-    run.debited_sub += from_sub
-    run.debited_purchased += from_pur
+
+    total = sum(c.credits for c in charges)
+    if org.subscription_credits + org.purchased_credits < total:
+        raise HTTPException(
+            status_code=status.HTTP_402_PAYMENT_REQUIRED, detail="Insufficient credits"
+        )
+
+    for charge in charges:
+        from_sub, from_pur = await billing.debit_credits(
+            session,
+            org,
+            charge.credits,
+            reason=charge.reason,
+            meta={"run_id": str(run.id), "step": step.slug},
+        )
+        run.credits_debited += charge.credits
+        run.debited_sub += from_sub
+        run.debited_purchased += from_pur
     session.add(run)
 
 

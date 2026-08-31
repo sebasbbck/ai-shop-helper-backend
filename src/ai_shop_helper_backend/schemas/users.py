@@ -11,6 +11,7 @@ class UserCreate(SQLModel):
     email: EmailStr
     name: str
     password: SecretStr = Field(min_length=8, max_length=128)
+    referral_code: str | None = None
 
 
 class UserUpdate(SQLModel):

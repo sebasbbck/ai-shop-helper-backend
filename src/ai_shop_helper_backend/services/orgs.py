@@ -108,11 +108,12 @@ async def create_org_with_owner(
     await org_users.create_org_user(session, org_user_in, user_id)
 
     from ai_shop_helper_backend.core.constants import FREE_TIER_CREDITS
-    from ai_shop_helper_backend.services import billing
+    from ai_shop_helper_backend.services import billing, referrals
 
     await billing.grant_purchased(
         session, org, FREE_TIER_CREDITS, reason="signup_bonus", meta={"free": True}
     )
+    await referrals.link_referee_org(session, user_id, org.id)
 
     return org
 

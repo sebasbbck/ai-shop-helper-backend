@@ -20,6 +20,7 @@ from ai_shop_helper_backend.models.org_users import OrgUser
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.project_types import ProjectType
 from ai_shop_helper_backend.models.projects import Project
+from ai_shop_helper_backend.models.referrals import Referral, ReferralCode
 from ai_shop_helper_backend.models.roles import Role
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.models.wordpress_tokens import WordpressToken
@@ -42,6 +43,8 @@ __all__ = [
     "ProjectAgentInput",
     "ProjectType",
     "RefreshToken",
+    "Referral",
+    "ReferralCode",
     "Role",
     "StripeCustomer",
     "StripeProcessedEvent",

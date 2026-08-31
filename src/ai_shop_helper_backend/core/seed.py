@@ -9,6 +9,7 @@ from ai_shop_helper_backend.models.agent_project_types import AgentProjectType
 from ai_shop_helper_backend.models.agent_runs import (
     AgentInput,
     AgentStep,
+    AgentStepCharge,
     InputScope,
     InputType,
     RunnerType,
@@ -51,6 +52,35 @@ async def _get_agent_input_by_key(
     return result.first()
 
 
+async def _reconcile_step_charges(
+    session: AsyncSession, step: AgentStep, charges: list[tuple[str, int]]
+) -> None:
+    """Reconcile a step's charge line-items and keep token_cost as their sum.
+
+    Idempotent: upserts each (reason, credits) and updates the step total, so an existing
+    DB (dev/prod) is corrected on every startup, not only on a fresh seed.
+    """
+    step.token_cost = sum(credits for _, credits in charges)
+    session.add(step)
+    for order, (reason, credits) in enumerate(charges):
+        result = await session.exec(
+            select(AgentStepCharge).where(
+                AgentStepCharge.step_id == step.id, AgentStepCharge.reason == reason
+            )
+        )
+        existing = result.first()
+        if existing is None:
+            session.add(
+                AgentStepCharge(
+                    step_id=step.id, order=order, reason=reason, credits=credits
+                )
+            )
+        else:
+            existing.order = order
+            existing.credits = credits
+            session.add(existing)
+
+
 async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
     agent = await agents_service.get_agent_by_name(session, "Blog Writer")
     if agent is None:
@@ -90,6 +120,7 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
             runner_type=RunnerType.n8n,
             runner_ref="blog_titles",
             token_cost=0,
+            connection_type=ConnectionType.wordpress,
         )
         session.add(step_titles)
         await session.flush()
@@ -107,6 +138,11 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
         )
         session.add(step_generate)
         await session.flush()
+
+    await _reconcile_step_charges(session, step_titles, [("ideas", 5)])
+    await _reconcile_step_charges(
+        session, step_generate, [("article", 35), ("image", 50), ("wp_upload", 2)]
+    )
 
     project_inputs: list[
         tuple[str, InputType, int, str, AgentStep | None, list | None, str | None]
