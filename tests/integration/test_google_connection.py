@@ -199,3 +199,204 @@ class TestGoogleGA4Endpoints:
         )
 
         assert response.status_code == 403
+
+
+_TOKEN_PATCH = (
+    "ai_shop_helper_backend.routers.connections.google_conn.get_valid_access_token"
+)
+_GET_PATCH = "ai_shop_helper_backend.routers.connections.google_conn.google_get"
+_POST_PATCH = "ai_shop_helper_backend.routers.connections.google_conn.google_post"
+
+
+async def _connected_project_headers(
+    client: AsyncClient,
+    session: AsyncSession,
+    create_user: Callable[..., Coroutine[None, None, User]],
+    email: str,
+) -> tuple[Project, dict[str, str]]:
+    owner = await create_user(email=email)
+    project = await _make_project(session, owner)
+    login = await client.post(
+        "/auth/login",
+        data={"username": owner.email, "password": "password123"},
+    )
+    headers = {"Authorization": f"Bearer {login.json()['access_token']}"}
+    return project, headers
+
+
+class TestGoogleProxyEndpoints:
+    async def test_ga4_accounts_proxies_google_get(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "ga4-accounts@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _GET_PATCH,
+                new_callable=AsyncMock,
+                return_value={"accounts": [{"name": "accounts/1"}]},
+            ),
+        ):
+            response = await client.get(
+                f"/connections/google/{project.id}/ga4/accounts", headers=headers
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"accounts": [{"name": "accounts/1"}]}
+
+    async def test_ga4_properties_proxies_google_get(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "ga4-properties@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _GET_PATCH,
+                new_callable=AsyncMock,
+                return_value={"properties": []},
+            ),
+        ):
+            response = await client.get(
+                f"/connections/google/{project.id}/ga4/accounts/42/properties",
+                headers=headers,
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"properties": []}
+
+    async def test_ga4_report_proxies_google_post(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "ga4-report@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _POST_PATCH,
+                new_callable=AsyncMock,
+                return_value={"rows": []},
+            ),
+        ):
+            response = await client.post(
+                f"/connections/google/{project.id}/ga4/properties/7/report",
+                headers=headers,
+                json={},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"rows": []}
+
+    async def test_ga4_realtime_proxies_google_post(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "ga4-realtime@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _POST_PATCH,
+                new_callable=AsyncMock,
+                return_value={"rows": []},
+            ),
+        ):
+            response = await client.post(
+                f"/connections/google/{project.id}/ga4/properties/7/realtime",
+                headers=headers,
+                json={},
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"rows": []}
+
+    async def test_search_console_sites_proxies_google_get(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "gsc-sites@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _GET_PATCH,
+                new_callable=AsyncMock,
+                return_value={"siteEntry": []},
+            ),
+        ):
+            response = await client.get(
+                f"/connections/google/{project.id}/search-console/sites",
+                headers=headers,
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"siteEntry": []}
+
+    async def test_search_console_query_proxies_google_post(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "gsc-query@example.com"
+        )
+        with (
+            patch(_TOKEN_PATCH, new_callable=AsyncMock, return_value="tok"),
+            patch(
+                _POST_PATCH,
+                new_callable=AsyncMock,
+                return_value={"rows": []},
+            ),
+        ):
+            response = await client.post(
+                f"/connections/google/{project.id}/search-console/query",
+                headers=headers,
+                json={
+                    "site_url": "https://example.com",
+                    "start_date": "2026-01-01",
+                    "end_date": "2026-01-31",
+                },
+            )
+
+        assert response.status_code == 200
+        assert response.json() == {"rows": []}
+
+    async def test_returns_502_when_token_refresh_fails(
+        self,
+        client: AsyncClient,
+        session: AsyncSession,
+        create_user: Callable[..., Coroutine[None, None, User]],
+    ) -> None:
+        project, headers = await _connected_project_headers(
+            client, session, create_user, "gsc-502@example.com"
+        )
+        with patch(
+            _TOKEN_PATCH,
+            new_callable=AsyncMock,
+            side_effect=RuntimeError("refresh boom"),
+        ):
+            response = await client.get(
+                f"/connections/google/{project.id}/ga4/accounts", headers=headers
+            )
+
+        assert response.status_code == 502
