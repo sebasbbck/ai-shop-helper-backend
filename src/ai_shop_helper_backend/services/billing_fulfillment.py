@@ -4,12 +4,13 @@ import sqlalchemy.exc
 from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.core.constants import AccessLevel, NotificationType
 from ai_shop_helper_backend.models.billing import (
     StripeProcessedEvent,
     StripeSubscription,
 )
 from ai_shop_helper_backend.models.orgs import Org
-from ai_shop_helper_backend.services import billing, referrals
+from ai_shop_helper_backend.services import billing, notifications, referrals
 
 
 async def fulfill(
@@ -81,4 +82,21 @@ async def fulfill(
         )
 
     await referrals.on_org_paid(session, org.id)
+
+    title = "Créditos añadidos"
+    body = (
+        f"Se han añadido {credits} créditos a tu organización tras la compra."
+        if kind == "topup"
+        else f"Se han añadido {credits} créditos a tu organización (plan {plan_key})."
+    )
+    await notifications.notify_org_members_by_role(
+        session,
+        org.id,
+        NotificationType.BILLING,
+        title,
+        body,
+        max_access_level=AccessLevel.OWNER,
+        payload={"kind": kind, "credits": credits},
+    )
+
     return True

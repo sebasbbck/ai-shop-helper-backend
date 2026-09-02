@@ -12,6 +12,7 @@ from sqlmodel.ext.asyncio.session import AsyncSession
 from ai_shop_helper_backend.connections import google as google_conn
 from ai_shop_helper_backend.connections.base import decode_secrets
 from ai_shop_helper_backend.core.config import settings
+from ai_shop_helper_backend.core.constants import AccessLevel, NotificationType
 from ai_shop_helper_backend.core.deps import CurrentUser, SessionDep
 from ai_shop_helper_backend.core.utils import get_datetime_utc
 from ai_shop_helper_backend.models.connections import ConnectionType
@@ -30,12 +31,30 @@ from ai_shop_helper_backend.schemas.google import (
     SearchConsoleQueryRequest,
 )
 from ai_shop_helper_backend.services import connections as conn_service
+from ai_shop_helper_backend.services import notifications as notifications_service
 from ai_shop_helper_backend.services import org_users, projects
 from ai_shop_helper_backend.services import wordpress_tokens as wp_tokens
 
 router = APIRouter(prefix="/connections", tags=["connections"])
 
 logger = logging.getLogger(__name__)
+
+
+async def _notify_connection_established(
+    session: AsyncSession, project_id: UUID, service_label: str
+) -> None:
+    project = await projects.get_project_by_id(session, project_id)
+    if not project:
+        return
+    await notifications_service.notify_org_members_by_role(
+        session,
+        project.org_id,
+        NotificationType.SERVICE_CHANGE,
+        "Nueva conexión establecida",
+        f'El proyecto "{project.name}" se ha conectado correctamente con {service_label}.',
+        max_access_level=AccessLevel.MEMBER,
+        payload={"project_id": str(project.id)},
+    )
 
 
 async def _require_project_member(
@@ -122,6 +141,7 @@ async def wordpress_callback(
             secrets=secrets,
         )
         await wp_tokens.delete_token(session, record)
+        await _notify_connection_established(session, record.project_id, "WordPress")
         await session.commit()
         logger.info(
             "WordPress connection established for project %s", record.project_id
@@ -246,6 +266,7 @@ async def google_connection_callback(
         connection_type=ConnectionType.google,
         secrets=secrets_data,
     )
+    await _notify_connection_established(session, project_id, "Google")
     logger.info("Google connection established for project %s", project_id)
 
     redirect = RedirectResponse(url=success_url)

@@ -20,6 +20,16 @@ def _stub_referral_hook() -> Generator[AsyncMock, None, None]:
         yield hook
 
 
+@pytest.fixture(autouse=True)
+def _stub_notify_hook() -> Generator[AsyncMock, None, None]:
+    """Isolate fulfill from the billing notification it dispatches on success."""
+    with patch(
+        "ai_shop_helper_backend.services.billing_fulfillment.notifications.notify_org_members_by_role",
+        new_callable=AsyncMock,
+    ) as hook:
+        yield hook
+
+
 class TestFulfillTopupPath:
     """Tests for the top-up (one-time purchase) fulfillment path."""
 
@@ -94,6 +104,28 @@ class TestFulfillTopupPath:
             )
 
         assert mock_grant.call_args.args[2] == 500
+
+    async def test_topup_notifies_org_owners(
+        self,
+        mock_session: AsyncMock,
+        make_org: Callable[..., Org],
+        _stub_notify_hook: AsyncMock,
+    ) -> None:
+        """fulfill notifies org owners about the credits granted."""
+        org = make_org()
+        mock_session.flush = AsyncMock()
+
+        with patch(
+            "ai_shop_helper_backend.services.billing_fulfillment.billing.grant_purchased",
+            new_callable=AsyncMock,
+        ):
+            await fulfill(
+                mock_session, org, kind="topup", credits=250, dedupe_key="cs_notify_1"
+            )
+
+        _stub_notify_hook.assert_awaited_once()
+        assert _stub_notify_hook.call_args.args[1] == org.id
+        assert _stub_notify_hook.call_args.kwargs["payload"]["credits"] == 250
 
 
 class TestFulfillSubscriptionPath:

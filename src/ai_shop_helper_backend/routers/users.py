@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, HTTPException, status
 from sqlmodel.ext.asyncio.session import AsyncSession
 
+from ai_shop_helper_backend.core.constants import NotificationType
 from ai_shop_helper_backend.core.deps import (
     CurrentSuperUser,
     CurrentUser,
@@ -11,6 +12,7 @@ from ai_shop_helper_backend.core.deps import (
 )
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
 from ai_shop_helper_backend.schemas.users import UserAdminUpdate, UserPublic, UserUpdate
+from ai_shop_helper_backend.services import notifications as notifications_service
 from ai_shop_helper_backend.services import users
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -138,7 +140,22 @@ async def update_user(
         )
     if user_in.email:
         await _check_email_available(session, user_in.email, user.email)
-    return UserPublic.model_validate(await users.update_user(session, user, user_in))
+
+    was_active = user.is_active
+    updated_user = await users.update_user(session, user, user_in)
+
+    if user_in.is_active is not None and user_in.is_active != was_active:
+        title = "Cuenta activada" if updated_user.is_active else "Cuenta desactivada"
+        body = (
+            "Tu cuenta ha sido reactivada."
+            if updated_user.is_active
+            else "Tu cuenta ha sido desactivada. Contacta con soporte si crees que es un error."
+        )
+        await notifications_service.create_notification(
+            session, updated_user.id, NotificationType.USER_STATUS_CHANGE, title, body
+        )
+
+    return UserPublic.model_validate(updated_user)
 
 
 @router.delete("/{user_id}", status_code=status.HTTP_204_NO_CONTENT)

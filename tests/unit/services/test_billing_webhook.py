@@ -286,6 +286,105 @@ class TestInvoicePaid:
         mock_fulfill.assert_not_awaited()
 
 
+class TestInvoicePaymentFailed:
+    """invoice.payment_failed event handling."""
+
+    async def test_marks_past_due_and_notifies_owners(
+        self,
+        mock_session: AsyncMock,
+        make_org: Callable[..., Org],
+    ) -> None:
+        """invoice.payment_failed marks the subscription past_due and notifies org owners."""
+        org = make_org()
+        inv = _make_invoice(subscription="sub_001", inv_id="inv_failed")
+
+        sub_row = MagicMock()
+        sub_row.org_id = org.id
+
+        exec_result = MagicMock()
+        exec_result.first.return_value = sub_row
+        mock_session.exec = AsyncMock(return_value=exec_result)
+
+        event = _make_event("invoice.payment_failed", inv)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.billing_webhook.get_org_by_id",
+                new_callable=AsyncMock,
+                return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.billing_webhook.notify_org_members_by_role",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
+            await billing_webhook.handle_event(mock_session, event)
+
+        assert sub_row.status == "past_due"
+        mock_notify.assert_awaited_once()
+        assert mock_notify.call_args.args[1] == org.id
+
+    async def test_no_subscription_row_skips_notify(
+        self,
+        mock_session: AsyncMock,
+    ) -> None:
+        """invoice.payment_failed with no matching subscription must not notify."""
+        inv = _make_invoice(subscription="sub_unknown", inv_id="inv_unknown")
+
+        exec_result = MagicMock()
+        exec_result.first.return_value = None
+        mock_session.exec = AsyncMock(return_value=exec_result)
+
+        event = _make_event("invoice.payment_failed", inv)
+
+        with patch(
+            "ai_shop_helper_backend.services.billing_webhook.notify_org_members_by_role",
+            new_callable=AsyncMock,
+        ) as mock_notify:
+            await billing_webhook.handle_event(mock_session, event)
+
+        mock_notify.assert_not_awaited()
+
+
+class TestSubscriptionDeleted:
+    """customer.subscription.deleted event handling."""
+
+    async def test_marks_canceled_and_notifies_owners(
+        self,
+        mock_session: AsyncMock,
+        make_org: Callable[..., Org],
+    ) -> None:
+        """subscription.deleted marks the subscription canceled and notifies org owners."""
+        org = make_org()
+        sub = _make_subscription_obj(sub_id="sub_001")
+
+        sub_row = MagicMock()
+        sub_row.org_id = org.id
+
+        exec_result = MagicMock()
+        exec_result.first.return_value = sub_row
+        mock_session.exec = AsyncMock(return_value=exec_result)
+
+        event = _make_event("customer.subscription.deleted", sub)
+
+        with (
+            patch(
+                "ai_shop_helper_backend.services.billing_webhook.get_org_by_id",
+                new_callable=AsyncMock,
+                return_value=org,
+            ),
+            patch(
+                "ai_shop_helper_backend.services.billing_webhook.notify_org_members_by_role",
+                new_callable=AsyncMock,
+            ) as mock_notify,
+        ):
+            await billing_webhook.handle_event(mock_session, event)
+
+        assert sub_row.status == "canceled"
+        mock_notify.assert_awaited_once()
+        assert mock_notify.call_args.args[1] == org.id
+
+
 class TestUnknownEventType:
     """Unknown event types must be silently ignored."""
 
