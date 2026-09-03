@@ -145,14 +145,12 @@ async def update_user(
     updated_user = await users.update_user(session, user, user_in)
 
     if user_in.is_active is not None and user_in.is_active != was_active:
-        title = "Cuenta activada" if updated_user.is_active else "Cuenta desactivada"
-        body = (
-            "Tu cuenta ha sido reactivada."
-            if updated_user.is_active
-            else "Tu cuenta ha sido desactivada. Contacta con soporte si crees que es un error."
-        )
+        reason = "activated" if updated_user.is_active else "deactivated"
         await notifications_service.create_notification(
-            session, updated_user.id, NotificationType.USER_STATUS_CHANGE, title, body
+            session,
+            updated_user.id,
+            NotificationType.USER_STATUS_CHANGE,
+            payload={"reason": reason},
         )
 
     return UserPublic.model_validate(updated_user)

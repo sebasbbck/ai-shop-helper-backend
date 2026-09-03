@@ -169,10 +169,8 @@ async def _handle_invoice_payment_failed(
                 session,
                 org.id,
                 NotificationType.BILLING,
-                "Pago fallido",
-                "No hemos podido procesar el pago de tu suscripción. "
-                "Actualiza tu método de pago para evitar interrupciones del servicio.",
                 max_access_level=AccessLevel.OWNER,
+                payload={"reason": "payment_failed"},
             )
 
 
@@ -216,7 +214,6 @@ async def _handle_subscription_deleted(
                 session,
                 org.id,
                 NotificationType.BILLING,
-                "Suscripción cancelada",
-                "Tu suscripción ha sido cancelada.",
                 max_access_level=AccessLevel.OWNER,
+                payload={"reason": "subscription_canceled"},
             )

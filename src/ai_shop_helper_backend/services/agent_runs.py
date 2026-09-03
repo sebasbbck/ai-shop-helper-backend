@@ -254,20 +254,16 @@ async def _start_step(
 async def _notify_run_finished(
     session: AsyncSession, run: AgentRun, success: bool, org_id: UUID | None
 ) -> None:
-    title = "Ejecución completada" if success else "Ejecución fallida"
-    body = (
-        "El agente ha terminado de ejecutarse correctamente."
-        if success
-        else "La ejecución del agente ha fallado."
-    )
     await notifications_service.create_notification(
         session,
         run.created_by,
         NotificationType.EXECUTION_FINISHED,
-        title,
-        body,
         org_id=org_id,
-        payload={"run_id": str(run.id), "project_id": str(run.project_id)},
+        payload={
+            "reason": "success" if success else "failed",
+            "run_id": str(run.id),
+            "project_id": str(run.project_id),
+        },
     )
 
 

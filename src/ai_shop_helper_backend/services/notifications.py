@@ -33,21 +33,22 @@ async def create_notification(
     session: AsyncSession,
     user_id: UUID,
     notification_type: str,
-    title: str,
-    body: str,
     org_id: UUID | None = None,
     payload: dict | None = None,
 ) -> Notification | None:
     """Create a notification for a user, unless they have muted this type.
 
+    The frontend owns all copy: it renders the notification text from `notification_type`
+    plus `payload` (see `Notifications.messages.<type>.<payload.reason>` in the frontend's
+    i18n catalogs), so no title/body text is generated here.
+
     Args:
         session (AsyncSession): The database session.
         user_id (UUID): The recipient user ID.
         notification_type (str): The notification type (see NotificationType constants).
-        title (str): The notification title.
-        body (str): The notification body.
         org_id (UUID | None): The related organization ID, if any.
-        payload (dict | None): Optional structured data attached to the notification.
+        payload (dict | None): Structured data the frontend uses to render the localized
+            text — by convention includes a "reason" key selecting the message variant.
 
     Returns:
         Notification | None: The created notification, or None if the user has muted this type.
@@ -59,8 +60,6 @@ async def create_notification(
         user_id=user_id,
         org_id=org_id,
         type=notification_type,
-        title=title,
-        body=body,
         payload=payload,
     )
     session.add(notification)
@@ -71,8 +70,6 @@ async def notify_org_members_by_role(
     session: AsyncSession,
     org_id: UUID,
     notification_type: str,
-    title: str,
-    body: str,
     max_access_level: int,
     payload: dict | None = None,
 ) -> list[Notification]:
@@ -85,10 +82,8 @@ async def notify_org_members_by_role(
         session (AsyncSession): The database session.
         org_id (UUID): The organization ID.
         notification_type (str): The notification type (see NotificationType constants).
-        title (str): The notification title.
-        body (str): The notification body.
         max_access_level (int): The maximum access_level (inclusive) a member's role may have to qualify.
-        payload (dict | None): Optional structured data attached to the notification.
+        payload (dict | None): Structured data the frontend uses to render the localized text.
 
     Returns:
         list[Notification]: The notifications created (muted recipients are skipped).
@@ -106,8 +101,6 @@ async def notify_org_members_by_role(
             session,
             user_id,
             notification_type,
-            title,
-            body,
             org_id=org_id,
             payload=payload,
         )

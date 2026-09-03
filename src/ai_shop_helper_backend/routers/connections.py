@@ -41,7 +41,7 @@ logger = logging.getLogger(__name__)
 
 
 async def _notify_connection_established(
-    session: AsyncSession, project_id: UUID, service_label: str
+    session: AsyncSession, project_id: UUID, connection_type: ConnectionType
 ) -> None:
     project = await projects.get_project_by_id(session, project_id)
     if not project:
@@ -50,10 +50,13 @@ async def _notify_connection_established(
         session,
         project.org_id,
         NotificationType.SERVICE_CHANGE,
-        "Nueva conexión establecida",
-        f'El proyecto "{project.name}" se ha conectado correctamente con {service_label}.',
         max_access_level=AccessLevel.MEMBER,
-        payload={"project_id": str(project.id)},
+        payload={
+            "reason": "connection_established",
+            "connection_type": connection_type.value,
+            "project_id": str(project.id),
+            "project_name": project.name,
+        },
     )
 
 
@@ -141,7 +144,9 @@ async def wordpress_callback(
             secrets=secrets,
         )
         await wp_tokens.delete_token(session, record)
-        await _notify_connection_established(session, record.project_id, "WordPress")
+        await _notify_connection_established(
+            session, record.project_id, ConnectionType.wordpress
+        )
         await session.commit()
         logger.info(
             "WordPress connection established for project %s", record.project_id
@@ -266,7 +271,7 @@ async def google_connection_callback(
         connection_type=ConnectionType.google,
         secrets=secrets_data,
     )
-    await _notify_connection_established(session, project_id, "Google")
+    await _notify_connection_established(session, project_id, ConnectionType.google)
     logger.info("Google connection established for project %s", project_id)
 
     redirect = RedirectResponse(url=success_url)

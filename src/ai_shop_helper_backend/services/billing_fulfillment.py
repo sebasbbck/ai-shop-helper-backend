@@ -83,20 +83,15 @@ async def fulfill(
 
     await referrals.on_org_paid(session, org.id)
 
-    title = "Créditos añadidos"
-    body = (
-        f"Se han añadido {credits} créditos a tu organización tras la compra."
-        if kind == "topup"
-        else f"Se han añadido {credits} créditos a tu organización (plan {plan_key})."
+    reason = (
+        "credits_granted_topup" if kind == "topup" else "credits_granted_subscription"
     )
     await notifications.notify_org_members_by_role(
         session,
         org.id,
         NotificationType.BILLING,
-        title,
-        body,
         max_access_level=AccessLevel.OWNER,
-        payload={"kind": kind, "credits": credits},
+        payload={"reason": reason, "kind": kind, "credits": credits, "plan": plan_key},
     )
 
     return True

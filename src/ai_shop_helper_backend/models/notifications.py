@@ -15,8 +15,6 @@ class Notification(UUIDMixin, CreatedAtMixin, SQLModel, table=True):
     user_id: uuid.UUID = Field(foreign_key="user.id")
     org_id: uuid.UUID | None = Field(default=None, foreign_key="org.id")
     type: str = Field(max_length=50, index=True)
-    title: str = Field(max_length=255)
-    body: str
     payload: dict | None = Field(default=None, sa_column=Column(sa.JSON))
     read_at: datetime | None = Field(default=None)
 
