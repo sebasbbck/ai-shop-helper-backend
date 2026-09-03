@@ -32,8 +32,7 @@ class TestCreateNotification:
             mock_session,
             user_id,
             NotificationType.EXECUTION_FINISHED,
-            "Done",
-            "Your execution finished",
+            payload={"reason": "success"},
         )
 
         mock_session.add.assert_called_once()
@@ -49,8 +48,7 @@ class TestCreateNotification:
             mock_session,
             uuid.uuid4(),
             NotificationType.EXECUTION_FINISHED,
-            "Done",
-            "Your execution finished",
+            payload={"reason": "success"},
         )
 
         mock_session.add.assert_not_called()
@@ -62,8 +60,7 @@ class TestCreateNotification:
             mock_session,
             uuid.uuid4(),
             NotificationType.BILLING,
-            "Invoice",
-            "Your invoice is ready",
+            payload={"reason": "credits_granted_topup", "credits": 100},
         )
 
         mock_session.exec.assert_not_called()
@@ -95,9 +92,8 @@ class TestNotifyOrgMembersByRole:
             mock_session,
             org_id,
             NotificationType.SERVICE_CHANGE,
-            "Billing alert",
-            "Payment failed",
             max_access_level=AccessLevel.OWNER,
+            payload={"reason": "connection_established"},
         )
 
         assert len(result) == 2
@@ -119,9 +115,8 @@ class TestNotifyOrgMembersByRole:
             mock_session,
             org_id,
             NotificationType.SERVICE_CHANGE,
-            "Service change",
-            "Something changed",
             max_access_level=AccessLevel.ADMIN,
+            payload={"reason": "connection_established"},
         )
 
         assert result == []
@@ -150,8 +145,7 @@ class TestGetNotifications:
         notification = Notification(
             user_id=uuid.uuid4(),
             type=NotificationType.EXECUTION_FINISHED,
-            title="Done",
-            body="Finished",
+            payload={"reason": "success"},
         )
         count_result = MagicMock()
         count_result.one.return_value = 1
@@ -206,8 +200,7 @@ class TestMarkAsRead:
         notification = Notification(
             user_id=uuid.uuid4(),
             type=NotificationType.EXECUTION_FINISHED,
-            title="Done",
-            body="Finished",
+            payload={"reason": "success"},
         )
 
         result = await mark_as_read(mock_session, notification)
@@ -220,8 +213,7 @@ class TestMarkAsRead:
         notification = Notification(
             user_id=uuid.uuid4(),
             type=NotificationType.EXECUTION_FINISHED,
-            title="Done",
-            body="Finished",
+            payload={"reason": "success"},
             read_at=None,
         )
         await mark_as_read(mock_session, notification)

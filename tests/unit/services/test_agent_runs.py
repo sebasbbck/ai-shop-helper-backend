@@ -514,6 +514,9 @@ class TestRecordStepResult:
                 MagicMock(first=MagicMock(return_value=run_step)),
                 MagicMock(first=MagicMock(return_value=run)),
                 MagicMock(all=MagicMock(return_value=[run_step])),
+                MagicMock(
+                    first=MagicMock(return_value=None)
+                ),  # notification mute check
             ]
             mock_session.exec = AsyncMock(side_effect=exec_results)
             mock_session.get = AsyncMock(return_value=step1)
@@ -549,6 +552,7 @@ class TestRecordStepResult:
         exec_results = [
             MagicMock(first=MagicMock(return_value=run_step)),
             MagicMock(first=MagicMock(return_value=run)),
+            MagicMock(first=MagicMock(return_value=None)),  # notification mute check
         ]
         mock_session.exec = AsyncMock(side_effect=exec_results)
         mock_session.commit = AsyncMock()

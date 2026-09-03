@@ -22,8 +22,7 @@ async def _create_notification(
     notification = Notification(
         user_id=user_id,
         type=notification_type,
-        title="Test notification",
-        body="Something happened",
+        payload={"reason": "test"},
         read_at=get_datetime_utc() if read else None,
     )
     session.add(notification)

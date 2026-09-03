@@ -9,8 +9,6 @@ class NotificationPublic(SQLModel):
 
     id: UUID
     type: str
-    title: str
-    body: str
     payload: dict | None
     read_at: datetime | None
     created_at: datetime

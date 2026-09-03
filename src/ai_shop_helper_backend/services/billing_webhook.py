@@ -8,9 +8,15 @@ from sqlmodel import select
 from sqlmodel.ext.asyncio.session import AsyncSession
 from stripe._stripe_object import UntypedStripeObject
 
-from ai_shop_helper_backend.core.constants import SUB_BY_KEY, credits_for_topup
+from ai_shop_helper_backend.core.constants import (
+    SUB_BY_KEY,
+    AccessLevel,
+    NotificationType,
+    credits_for_topup,
+)
 from ai_shop_helper_backend.models.billing import StripeSubscription
 from ai_shop_helper_backend.services.billing_fulfillment import fulfill
+from ai_shop_helper_backend.services.notifications import notify_org_members_by_role
 from ai_shop_helper_backend.services.orgs import get_org_by_id
 
 logger = logging.getLogger(__name__)
@@ -157,6 +163,16 @@ async def _handle_invoice_payment_failed(
         session.add(sub_row)
         logger.info("stripe subscription past_due: sub=%s", sub_id)
 
+        org = await get_org_by_id(session, sub_row.org_id)
+        if org:
+            await notify_org_members_by_role(
+                session,
+                org.id,
+                NotificationType.BILLING,
+                max_access_level=AccessLevel.OWNER,
+                payload={"reason": "payment_failed"},
+            )
+
 
 async def _handle_subscription_updated(
     session: AsyncSession, sub: UntypedStripeObject[Any]
@@ -191,3 +207,13 @@ async def _handle_subscription_deleted(
         sub_row.status = "canceled"
         session.add(sub_row)
         logger.info("stripe subscription canceled: sub=%s", sub.id)
+
+        org = await get_org_by_id(session, sub_row.org_id)
+        if org:
+            await notify_org_members_by_role(
+                session,
+                org.id,
+                NotificationType.BILLING,
+                max_access_level=AccessLevel.OWNER,
+                payload={"reason": "subscription_canceled"},
+            )

@@ -10,6 +10,7 @@ from ai_shop_helper_backend.core.callback_token import make_callback_token
 from ai_shop_helper_backend.core.config import settings
 from ai_shop_helper_backend.core.constants import (
     PROJECT_CONTEXT_FIELDS,
+    NotificationType,
 )
 from ai_shop_helper_backend.models.agent_runs import (
     AgentInput,
@@ -28,6 +29,7 @@ from ai_shop_helper_backend.runners.base import StartResult
 from ai_shop_helper_backend.runners.registry import get_runner
 from ai_shop_helper_backend.services import billing
 from ai_shop_helper_backend.services import connections as conn_service
+from ai_shop_helper_backend.services import notifications as notifications_service
 from ai_shop_helper_backend.services.orgs import get_org_by_id
 from ai_shop_helper_backend.services.projects import get_project_by_id
 
@@ -238,6 +240,7 @@ async def _start_step(
                 reason=billing.REASON_REFUND,
                 meta={"run_id": str(run.id)},
             )
+        await _notify_run_finished(session, run, False, org.id if org else None)
         return
 
     if result.sync_output is not None:
@@ -246,6 +249,22 @@ async def _start_step(
         run_step.finished_at = datetime.now(UTC)
         session.add(run_step)
         await _advance_run(session, run, step, run_step, run_inputs_so_far)
+
+
+async def _notify_run_finished(
+    session: AsyncSession, run: AgentRun, success: bool, org_id: UUID | None
+) -> None:
+    await notifications_service.create_notification(
+        session,
+        run.created_by,
+        NotificationType.EXECUTION_FINISHED,
+        org_id=org_id,
+        payload={
+            "reason": "success" if success else "failed",
+            "run_id": str(run.id),
+            "project_id": str(run.project_id),
+        },
+    )
 
 
 async def _get_run_org(session: AsyncSession, run: AgentRun) -> Org | None:
@@ -269,6 +288,7 @@ async def _advance_run(
         run.status = RunStatus.success
         run.finished_at = datetime.now(UTC)
         session.add(run)
+        await _notify_run_finished(session, run, True, org_id=None)
         return
 
     agent_inputs = await _get_inputs_for_agent(session, run.agent_id)
@@ -523,6 +543,7 @@ async def record_step_result(
                 reason=billing.REASON_REFUND,
                 meta={"run_id": str(run_id)},
             )
+        await _notify_run_finished(session, run, False, org.id if org else None)
 
         await session.commit()
         return
