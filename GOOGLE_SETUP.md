@@ -55,7 +55,7 @@ Al crear el cliente, Google muestra el **Client ID** y el **Client Secret** — 
 
 ## 5. Variables de entorno
 
-En el `.env` del entorno correspondiente (nunca se versiona, ver `.gitignore` — vive directamente en el servidor de cada entorno):
+Estas son las variables de entorno necesarias en cada entorno (dev, prod). Cómo y dónde se inyectan es cosa de la infraestructura de cada entorno, no de este repo:
 
 ```env
 GOOGLE_CLIENT_ID=<client id del paso 4>
