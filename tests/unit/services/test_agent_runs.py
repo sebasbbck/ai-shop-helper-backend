@@ -23,6 +23,7 @@ from ai_shop_helper_backend.models.agent_runs import (
     RunStatus,
 )
 from ai_shop_helper_backend.models.connections import ConnectionType
+from ai_shop_helper_backend.models.notifications import Notification
 from ai_shop_helper_backend.models.orgs import Org
 from ai_shop_helper_backend.models.users import User
 
@@ -479,6 +480,7 @@ class TestRecordStepResult:
 
         agent_id = uuid.uuid4()
         project_id = uuid.uuid4()
+        org = make_org()
         step1 = _make_step(agent_id, order=1)
         run = _make_run(project_id, agent_id, credits_debited=10)
         run_step = _make_run_step(run.id, step1.id, status=RunStatus.running)
@@ -509,6 +511,11 @@ class TestRecordStepResult:
                 new_callable=AsyncMock,
                 return_value=None,
             ),
+            patch(
+                "ai_shop_helper_backend.services.agent_runs._get_run_org_id",
+                new_callable=AsyncMock,
+                return_value=org.id,
+            ) as mock_get_run_org_id,
         ):
             exec_results = [
                 MagicMock(first=MagicMock(return_value=run_step)),
@@ -534,6 +541,13 @@ class TestRecordStepResult:
         assert run_step.status == RunStatus.success
         assert run_step.output == {"output_key": "val"}
         assert run.status == RunStatus.success
+        mock_get_run_org_id.assert_awaited_once()
+        added_notifications = [
+            call.args[0]
+            for call in mock_session.add.call_args_list
+            if isinstance(call.args[0], Notification)
+        ]
+        assert added_notifications[0].org_id == org.id
 
     async def test_failure_callback_marks_run_failed_and_refunds(
         self,
