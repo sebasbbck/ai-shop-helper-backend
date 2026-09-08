@@ -10,13 +10,30 @@ from ai_shop_helper_backend.core.deps import (
 )
 from ai_shop_helper_backend.schemas.common import PaginatedResponse
 from ai_shop_helper_backend.schemas.org_users import (
+    OrgMemberPublic,
+    OrgMemberRole,
+    OrgMemberUser,
     OrgUserCreate,
     OrgUserPublic,
     OrgUserUpdate,
 )
 from ai_shop_helper_backend.services import org_users, roles, users
+from ai_shop_helper_backend.services.org_users import OrgMemberRow
 
 router = APIRouter(prefix="/orgs", tags=["org-members"])
+
+
+def _to_member_public(row: OrgMemberRow) -> OrgMemberPublic:
+    """Build the enriched member view from a joined (org_user, user, role) row."""
+    org_user, user, role = row
+    return OrgMemberPublic(
+        id=org_user.id,
+        org_id=org_user.org_id,
+        user=OrgMemberUser(id=user.id, name=user.name, email=user.email),
+        role=OrgMemberRole(id=role.id, name=role.name, access_level=role.access_level),
+        created_at=org_user.created_at,
+        updated_at=org_user.updated_at,
+    )
 
 
 @router.post(
@@ -77,14 +94,14 @@ async def add_org_member(
     return OrgUserPublic.model_validate(org_user)
 
 
-@router.get("/{org_id}/members", response_model=PaginatedResponse[OrgUserPublic])
+@router.get("/{org_id}/members", response_model=PaginatedResponse[OrgMemberPublic])
 async def get_org_members(
     org_id: UUID,
     org_member: CurrentOrgMember,
     pagination: PaginationDep,
     session: SessionDep,
-) -> PaginatedResponse[OrgUserPublic]:
-    """List organization members. Member access.
+) -> PaginatedResponse[OrgMemberPublic]:
+    """List organization members with their user and role. Member access.
 
     Args:
         org_id (UUID): The organization ID.
@@ -93,27 +110,27 @@ async def get_org_members(
         session (SessionDep): The database session.
 
     Returns:
-        PaginatedResponse[OrgUserPublic]: The paginated list of members.
+        PaginatedResponse[OrgMemberPublic]: The paginated list of enriched members.
     """
-    items, total = await org_users.get_org_users(
+    rows, total = await org_users.get_org_members_enriched(
         session, org_id, pagination.offset, pagination.limit
     )
     return PaginatedResponse(
-        items=[OrgUserPublic.model_validate(ou) for ou in items],
+        items=[_to_member_public(row) for row in rows],
         total=total,
         offset=pagination.offset,
         limit=pagination.limit,
     )
 
 
-@router.get("/{org_id}/members/{user_id}", response_model=OrgUserPublic)
+@router.get("/{org_id}/members/{user_id}", response_model=OrgMemberPublic)
 async def get_org_member(
     org_id: UUID,
     user_id: UUID,
     org_member: CurrentOrgMember,
     session: SessionDep,
-) -> OrgUserPublic:
-    """Get specific member details. Member access.
+) -> OrgMemberPublic:
+    """Get specific member details with user and role. Member access.
 
     Args:
         org_id (UUID): The organization ID.
@@ -122,18 +139,18 @@ async def get_org_member(
         session (SessionDep): The database session.
 
     Returns:
-        OrgUserPublic: The org membership.
+        OrgMemberPublic: The enriched org membership.
 
     Raises:
         HTTPException: 404 if the member is not found.
     """
-    org_user = await org_users.get_org_user(session, user_id, org_id)
-    if not org_user:
+    row = await org_users.get_org_member_enriched(session, user_id, org_id)
+    if not row:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Member not found",
         )
-    return OrgUserPublic.model_validate(org_user)
+    return _to_member_public(row)
 
 
 @router.patch("/{org_id}/members/{user_id}", response_model=OrgUserPublic)

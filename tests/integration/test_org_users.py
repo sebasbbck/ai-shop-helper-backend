@@ -184,7 +184,14 @@ class TestListAndGetMembers:
         response = await client.get(f"/orgs/{org_id}/members", headers=auth_headers)
 
         assert response.status_code == 200
-        assert response.json()["total"] == 2
+        data = response.json()
+        assert data["total"] == 2
+        added = next(
+            row for row in data["items"] if row["user"]["id"] == str(member.id)
+        )
+        assert added["user"]["email"] == "member@example.com"
+        assert added["role"]["name"] == "Member"
+        assert added["role"]["access_level"] == seeded_roles["Member"].access_level
 
     async def test_get_member(
         self,
@@ -211,7 +218,10 @@ class TestListAndGetMembers:
         )
 
         assert response.status_code == 200
-        assert response.json()["user_id"] == str(member.id)
+        data = response.json()
+        assert data["user"]["id"] == str(member.id)
+        assert data["user"]["email"] == "member@example.com"
+        assert data["role"]["name"] == "Member"
 
     async def test_get_unknown_member_not_found(
         self, client: AsyncClient, auth_headers: dict[str, str]
