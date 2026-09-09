@@ -1,80 +1,98 @@
-# Configuración externa de Google Cloud
+# Google Cloud external setup
 
-Este documento describe la configuración que hay que dejar hecha en **Google Cloud Console** para que el login con Google y las conexiones de datos (GA4 + Search Console) funcionen en un entorno dado (local, dev, prod). No cubre el código — solo la parte externa que vive fuera del repo.
+This document describes the setup that must be in place in **Google Cloud Console** for Google login and
+the data connections (GA4 + Search Console) to work in a given environment (local, dev, prod). It does not
+cover code — only the external part that lives outside the repo.
 
-Cada entorno (dev, prod) usa su **propio proyecto de Google Cloud** y su **propio par de credenciales OAuth** — no se comparten entre entornos. Ver "División dev/prod" más abajo.
+Each environment (dev, prod) uses its **own Google Cloud project** and its **own OAuth credential pair** —
+they are not shared between environments. See "Dev/prod split" below.
 
-## 1. Proyecto de Google Cloud
+## 1. Google Cloud project
 
-Crea (o reutiliza) un proyecto en [Google Cloud Console](https://console.cloud.google.com). El nombre visible del proyecto (display name) no importa y se puede cambiar en cualquier momento desde `IAM & Admin` → `Settings` sin afectar al funcionamiento — el identificador real es el **Project ID**, que es inmutable.
+Create (or reuse) a project in [Google Cloud Console](https://console.cloud.google.com). The project's
+display name does not matter and can be changed anytime under `IAM & Admin` → `Settings` without affecting
+anything — the real identifier is the **Project ID**, which is immutable.
 
-Antes de reutilizar un proyecto existente, comprueba que esté vacío o que sepas exactamente qué contiene — no lo dejes en manos de que "parece vacío".
+Before reusing an existing project, confirm it is empty or that you know exactly what it contains — do not
+rely on it just "looking empty".
 
-## 2. Habilitar las APIs necesarias
+## 2. Enable the required APIs
 
-`APIs & Services` → `Library`, y activa:
+`APIs & Services` → `Library`, and enable:
 
-| API | Para qué |
+| API | Purpose |
 |---|---|
-| **Google Analytics Admin API** | Listar cuentas/propiedades GA4 (`analyticsadmin.googleapis.com`) |
-| **Google Analytics Data API** | Informes GA4 (`analyticsdata.googleapis.com`) |
-| **Google Search Console API** | Datos de Search Console (`www.googleapis.com/webmasters/v3`) |
+| **Google Analytics Admin API** | List GA4 accounts/properties (`analyticsadmin.googleapis.com`) |
+| **Google Analytics Data API** | GA4 reports (`analyticsdata.googleapis.com`) |
+| **Google Search Console API** | Search Console data (`www.googleapis.com/webmasters/v3`) |
 
-No hace falta activar ninguna API para el login (usa endpoints públicos de `accounts.google.com` que no requieren habilitación).
+No API needs to be enabled for login (it uses public `accounts.google.com` endpoints that require no
+enablement).
 
-## 3. Pantalla de consentimiento OAuth
+## 3. OAuth consent screen
 
 `APIs & Services` → `OAuth consent screen` (Google Auth Platform):
 
-- **Tipo de usuario**: `External` — obligatorio, es login de clientes, no una herramienta interna restringida al workspace propio.
-- **Modo**: `Testing` mientras no esté verificada por Google (limita el login a usuarios de prueba añadidos explícitamente; pasar a producción requiere el proceso de verificación de Google si se usan scopes sensibles).
+- **User type**: `External` — required; this is customer login, not an internal tool restricted to your own
+  workspace.
+- **Mode**: `Testing` until verified by Google (limits login to explicitly added test users; moving to
+  production requires Google's verification process if sensitive scopes are used).
 
 ### Scopes (`Google Auth Platform` → `Data Access`)
 
-| Scope | Uso |
+| Scope | Use |
 |---|---|
 | `openid` | Login |
 | `.../auth/userinfo.email` | Login |
 | `.../auth/userinfo.profile` | Login |
-| `.../auth/webmasters.readonly` | Conexión de datos — Search Console |
-| `.../auth/analytics.readonly` | Conexión de datos — GA4 |
+| `.../auth/webmasters.readonly` | Data connection — Search Console |
+| `.../auth/analytics.readonly` | Data connection — GA4 |
 
-## 4. Cliente OAuth
+## 4. OAuth client
 
 `APIs & Services` → `Credentials` → `Create Credentials` → `OAuth client ID`:
 
 - **Application type**: `Web application`
-- **Authorized redirect URIs** — exactamente estas dos, una por flujo (login y conexión de datos son flujos separados con callbacks distintos, ver `CLAUDE.md`):
+- **Authorized redirect URIs** — exactly these two, one per flow (login and data connection are separate
+  flows with distinct callbacks, see `CLAUDE.md`):
   ```
   https://<host>/api/v1/google/callback
   https://<host>/api/v1/connections/google/callback
   ```
-  Sustituye `<host>` por el dominio del backend en ese entorno (ej. `dev.aishophelper.ai`, o `localhost:8080` en local).
+  Replace `<host>` with the backend domain for that environment (e.g. `dev.aishophelper.ai`, or
+  `localhost:8080` locally).
 
-Al crear el cliente, Google muestra el **Client ID** y el **Client Secret** — cópialos, el secret completo no se vuelve a mostrar después.
+When the client is created, Google shows the **Client ID** and **Client Secret** — copy them; the full
+secret is not shown again afterwards.
 
-## 5. Variables de entorno
+## 5. Environment variables
 
-Estas son las variables de entorno necesarias en cada entorno (dev, prod). Cómo y dónde se inyectan es cosa de la infraestructura de cada entorno, no de este repo:
+These are the environment variables each environment (dev, prod) needs. How and where they are injected is
+the concern of each environment's infrastructure, not of this repo:
 
 ```env
-GOOGLE_CLIENT_ID=<client id del paso 4>
-GOOGLE_CLIENT_SECRET=<client secret del paso 4>
+GOOGLE_CLIENT_ID=<client id from step 4>
+GOOGLE_CLIENT_SECRET=<client secret from step 4>
 GOOGLE_LOGIN_REDIRECT_URI=https://<host>/api/v1/google/callback
 GOOGLE_LOGIN_SUCCESS_URL=https://<frontend host>/login/success
 GOOGLE_LOGIN_ERROR_URL=https://<frontend host>/login/failure
 GOOGLE_CONNECTION_REDIRECT_URI=https://<host>/api/v1/connections/google/callback
 ```
 
-`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` son opcionales a nivel de arranque de la app (no rompe el boot si faltan), pero sin ellos el login/conexión con Google falla en tiempo de petición con `invalid_request` de Google.
+`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` are optional at app startup (the boot does not break if they are
+missing), but without them Google login/connection fails at request time with Google's `invalid_request`.
 
-## 6. Verificación rápida
+## 6. Quick verification
 
 ```
 GET /api/v1/google/login
 ```
-Debe devolver un `auth_url` con `client_id` no vacío. Si `client_id` viene vacío, la variable de entorno no está seteada en ese entorno.
+Must return an `auth_url` with a non-empty `client_id`. If `client_id` comes back empty, the environment
+variable is not set in that environment.
 
-## División dev/prod
+## Dev/prod split
 
-Cada entorno tiene su propio proyecto de Google Cloud, y por tanto su propio cliente OAuth y sus propias credenciales — nunca se reutiliza el mismo Client ID/Secret entre dev y prod. Esto es una decisión explícita, no un detalle de implementación: mezclar entornos en un solo proyecto de Google mezclaría también usuarios de prueba, cuotas y (si se verifica la app) la revisión de Google.
+Each environment has its own Google Cloud project, and therefore its own OAuth client and its own
+credentials — the same Client ID/Secret is never reused between dev and prod. This is a deliberate decision,
+not an implementation detail: mixing environments in a single Google project would also mix test users,
+quotas, and (if the app gets verified) Google's review.
