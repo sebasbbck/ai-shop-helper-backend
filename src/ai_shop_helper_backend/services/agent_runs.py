@@ -274,6 +274,17 @@ async def _get_run_org(session: AsyncSession, run: AgentRun) -> Org | None:
     return await get_org_by_id(session, project.org_id)
 
 
+async def _get_run_org_id(session: AsyncSession, run: AgentRun) -> UUID | None:
+    """Resolve just the run's org_id, for the success path — no refund needed there,
+    so there's no reason to load the full Org row like `_get_run_org` does for
+    failures. Still one extra (indexed, by-PK) query on top of the success hot path,
+    but it's what keeps EXECUTION_FINISHED notifications org-scoped consistently
+    regardless of `reason` — see PR review from Enrique, 2026-09-07.
+    """
+    project = await get_project_by_id(session, run.project_id)
+    return project.org_id if project else None
+
+
 async def _advance_run(
     session: AsyncSession,
     run: AgentRun,
@@ -288,7 +299,9 @@ async def _advance_run(
         run.status = RunStatus.success
         run.finished_at = datetime.now(UTC)
         session.add(run)
-        await _notify_run_finished(session, run, True, org_id=None)
+        await _notify_run_finished(
+            session, run, True, org_id=await _get_run_org_id(session, run)
+        )
         return
 
     agent_inputs = await _get_inputs_for_agent(session, run.agent_id)
