@@ -19,6 +19,7 @@ from ai_shop_helper_backend.models.connections import ConnectionType
 from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.schemas.connections import (
+    ConnectionAvailability,
     WordpressStartBody,
     WordpressStartResponse,
     WordpressStatusResponse,
@@ -76,6 +77,25 @@ async def _require_project_member(
             detail="Not a member of this organization",
         )
     return project
+
+
+@router.get(
+    "/{project_id}/available",
+    response_model=list[ConnectionAvailability],
+)
+async def get_available_connections(
+    project_id: UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> list[ConnectionAvailability]:
+    """Connection types relevant to a project (per its agents) and their status.
+
+    Lets the frontend load the settings-menu connection cards dynamically
+    instead of hardcoding WordPress/Google — a project whose agents never use
+    a Google-backed step simply won't get a Google card.
+    """
+    project = await _require_project_member(session, current_user, project_id)
+    return await conn_service.list_connection_availability(session, project)
 
 
 @router.post(

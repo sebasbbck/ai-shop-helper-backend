@@ -1,5 +1,14 @@
 from sqlmodel import SQLModel
 
+from ai_shop_helper_backend.models.connections import ConnectionType
+
+
+class ConnectionAvailability(SQLModel):
+    """Whether a connection type relevant to a project is already connected."""
+
+    connection_type: ConnectionType
+    connected: bool
+
 
 class WordpressStartBody(SQLModel):
     """Request body for initiating a WordPress connection."""
