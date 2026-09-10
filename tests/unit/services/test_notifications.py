@@ -14,7 +14,9 @@ from ai_shop_helper_backend.services.notifications import (
     get_notifications,
     get_preferences,
     get_unread_count,
+    mark_all_as_read,
     mark_as_read,
+    mark_as_unread,
     notify_org_members_by_role,
     set_preference,
 )
@@ -137,6 +139,21 @@ class TestGetUnreadCount:
         assert result == 3
 
 
+class TestGetUnreadCountOrgFilter:
+    """Tests for the org_id filter on get_unread_count."""
+
+    async def test_scopes_to_org_when_given(self, mock_session: AsyncMock):
+        """Test that passing org_id still executes a single count query."""
+        count_result = MagicMock()
+        count_result.one.return_value = 1
+        mock_session.exec.return_value = count_result
+
+        result = await get_unread_count(mock_session, uuid.uuid4(), org_id=uuid.uuid4())
+
+        assert result == 1
+        mock_session.exec.assert_called_once()
+
+
 class TestGetNotifications:
     """Tests for the get_notifications service function."""
 
@@ -171,6 +188,22 @@ class TestGetNotifications:
 
         items, total = await get_notifications(
             mock_session, uuid.uuid4(), offset=0, limit=50, unread_only=True
+        )
+
+        assert mock_session.exec.call_count == 2
+        assert total == 0
+        assert items == []
+
+    async def test_org_id_adds_filter(self, mock_session: AsyncMock):
+        """Test that passing org_id still executes both queries with the extra filter applied."""
+        count_result = MagicMock()
+        count_result.one.return_value = 0
+        list_result = MagicMock()
+        list_result.all.return_value = []
+        mock_session.exec.side_effect = [count_result, list_result]
+
+        items, total = await get_notifications(
+            mock_session, uuid.uuid4(), offset=0, limit=50, org_id=uuid.uuid4()
         )
 
         assert mock_session.exec.call_count == 2
@@ -221,6 +254,78 @@ class TestMarkAsRead:
 
         await mark_as_read(mock_session, notification)
 
+        mock_session.add.assert_not_called()
+
+
+class TestMarkAsUnread:
+    """Tests for the mark_as_unread service function."""
+
+    async def test_clears_read_at_when_read(self, mock_session: AsyncMock):
+        """Test that mark_as_unread clears read_at and adds the notification to the session."""
+        notification = Notification(
+            user_id=uuid.uuid4(),
+            type=NotificationType.EXECUTION_FINISHED,
+            payload={"reason": "success"},
+        )
+        await mark_as_read(mock_session, notification)
+        mock_session.reset_mock()
+
+        result = await mark_as_unread(mock_session, notification)
+
+        assert result.read_at is None
+        mock_session.add.assert_called_once_with(notification)
+
+    async def test_noop_when_already_unread(self, mock_session: AsyncMock):
+        """Test that mark_as_unread does not touch the session if already unread."""
+        notification = Notification(
+            user_id=uuid.uuid4(),
+            type=NotificationType.EXECUTION_FINISHED,
+            payload={"reason": "success"},
+            read_at=None,
+        )
+
+        await mark_as_unread(mock_session, notification)
+
+        mock_session.add.assert_not_called()
+
+
+class TestMarkAllAsRead:
+    """Tests for the mark_all_as_read service function."""
+
+    async def test_marks_every_unread_notification(self, mock_session: AsyncMock):
+        """Test that mark_all_as_read sets read_at on every unread notification returned."""
+        user_id = uuid.uuid4()
+        unread = [
+            Notification(
+                user_id=user_id,
+                type=NotificationType.EXECUTION_FINISHED,
+                payload={"reason": "success"},
+            ),
+            Notification(
+                user_id=user_id,
+                type=NotificationType.EXECUTION_FINISHED,
+                payload={"reason": "failed"},
+            ),
+        ]
+        result_mock = MagicMock()
+        result_mock.all.return_value = unread
+        mock_session.exec.return_value = result_mock
+
+        count = await mark_all_as_read(mock_session, user_id)
+
+        assert count == 2
+        assert all(n.read_at is not None for n in unread)
+        assert mock_session.add.call_count == 2
+
+    async def test_returns_zero_when_nothing_unread(self, mock_session: AsyncMock):
+        """Test that mark_all_as_read returns 0 and touches nothing when there is no unread."""
+        result_mock = MagicMock()
+        result_mock.all.return_value = []
+        mock_session.exec.return_value = result_mock
+
+        count = await mark_all_as_read(mock_session, uuid.uuid4(), org_id=uuid.uuid4())
+
+        assert count == 0
         mock_session.add.assert_not_called()
 
 

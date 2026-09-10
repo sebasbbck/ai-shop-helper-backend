@@ -109,20 +109,25 @@ async def notify_org_members_by_role(
     return notifications
 
 
-async def get_unread_count(session: AsyncSession, user_id: UUID) -> int:
+async def get_unread_count(
+    session: AsyncSession, user_id: UUID, org_id: UUID | None = None
+) -> int:
     """Count unread notifications for a user.
 
     Args:
         session (AsyncSession): The database session.
         user_id (UUID): The user ID.
+        org_id (UUID | None): If given, only count notifications tied to this org.
 
     Returns:
         int: The number of unread notifications.
     """
+    filters = [Notification.user_id == user_id, col(Notification.read_at).is_(None)]
+    if org_id is not None:
+        filters.append(Notification.org_id == org_id)
+
     result = await session.exec(
-        select(func.count())
-        .select_from(Notification)
-        .where(Notification.user_id == user_id, col(Notification.read_at).is_(None))
+        select(func.count()).select_from(Notification).where(*filters)
     )
     return result.one()
 
@@ -133,6 +138,7 @@ async def get_notifications(
     offset: int,
     limit: int,
     unread_only: bool = False,
+    org_id: UUID | None = None,
 ) -> tuple[Sequence[Notification], int]:
     """Get a paginated list of a user's notifications, newest first.
 
@@ -142,6 +148,7 @@ async def get_notifications(
         offset (int): The number of notifications to skip.
         limit (int): The maximum number of notifications to return.
         unread_only (bool): Whether to only return unread notifications.
+        org_id (UUID | None): If given, only return notifications tied to this org.
 
     Returns:
         tuple[Sequence[Notification], int]: A tuple containing the list of notifications
@@ -150,6 +157,8 @@ async def get_notifications(
     filters = [Notification.user_id == user_id]
     if unread_only:
         filters.append(col(Notification.read_at).is_(None))
+    if org_id is not None:
+        filters.append(Notification.org_id == org_id)
 
     total_result = await session.exec(
         select(func.count()).select_from(Notification).where(*filters)
@@ -195,6 +204,53 @@ async def mark_as_read(
         notification.read_at = get_datetime_utc()
         session.add(notification)
     return notification
+
+
+async def mark_as_unread(
+    session: AsyncSession, notification: Notification
+) -> Notification:
+    """Mark a notification as unread, if it isn't already.
+
+    Symmetric to mark_as_read — lets a user move a notification back to the
+    unread state from the dedicated notifications view.
+
+    Args:
+        session (AsyncSession): The database session.
+        notification (Notification): The notification to mark as unread.
+
+    Returns:
+        Notification: The updated notification.
+    """
+    if notification.read_at is not None:
+        notification.read_at = None
+        session.add(notification)
+    return notification
+
+
+async def mark_all_as_read(
+    session: AsyncSession, user_id: UUID, org_id: UUID | None = None
+) -> int:
+    """Mark all of a user's unread notifications as read.
+
+    Args:
+        session (AsyncSession): The database session.
+        user_id (UUID): The user ID.
+        org_id (UUID | None): If given, only mark notifications tied to this org as read.
+
+    Returns:
+        int: The number of notifications marked as read.
+    """
+    filters = [Notification.user_id == user_id, col(Notification.read_at).is_(None)]
+    if org_id is not None:
+        filters.append(Notification.org_id == org_id)
+
+    result = await session.exec(select(Notification).where(*filters))
+    unread = result.all()
+    now = get_datetime_utc()
+    for notification in unread:
+        notification.read_at = now
+        session.add(notification)
+    return len(unread)
 
 
 async def get_preferences(session: AsyncSession, user_id: UUID) -> dict[str, bool]:
