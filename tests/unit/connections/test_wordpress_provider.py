@@ -81,4 +81,4 @@ class TestConnectionRegistry:
 
     def test_get_connection_provider_raises_for_unknown_type(self) -> None:
         with pytest.raises(ValueError, match="No connection provider registered"):
-            get_connection_provider("prestashop")  # type: ignore[arg-type]
+            get_connection_provider("unknown_type")  # type: ignore[arg-type]

@@ -54,6 +54,11 @@ def build_wordpress_secrets(site_url: str, username: str, app_password: str) -> 
     return {"site_url": site_url, "username": username, "app_password": app_password}
 
 
+def build_prestashop_secrets(shop_url: str, ws_key: str) -> dict:
+    base = shop_url.rstrip("/")
+    return {"shop_url": base, "api_url": f"{base}/api", "ws_key": ws_key}
+
+
 async def delete_connection(session: AsyncSession, connection: Connection) -> None:
     await session.delete(connection)
 

@@ -28,3 +28,17 @@ class WordpressStatusResponse(SQLModel):
     connected: bool
     site_url: str | None = None
     username: str | None = None
+
+
+class PrestashopConnectBody(SQLModel):
+    """Request body for connecting a PrestaShop store via its Webservice API key."""
+
+    shop_url: str
+    ws_key: str
+
+
+class PrestashopStatusResponse(SQLModel):
+    """Connection status for a project — never includes the webservice key."""
+
+    connected: bool
+    shop_url: str | None = None
