@@ -201,6 +201,102 @@ async def _seed_blog_writer(session: AsyncSession, superuser: User) -> None:
             )
 
 
+async def _seed_chatbot_configurator(session: AsyncSession, superuser: User) -> None:
+    agent = await agents_service.get_agent_by_name(session, "Chatbot Configurator")
+    if agent is None:
+        agent = Agent(
+            name="Chatbot Configurator",
+            description="Configure the storefront AI chatbot for your PrestaShop store.",
+            created_by=superuser.id,
+            updated_by=superuser.id,
+        )
+        session.add(agent)
+        await session.flush()
+
+    ps_project_type = await project_types_service.get_project_type_by_name(
+        session, "PrestaShop"
+    )
+    if ps_project_type is not None and (
+        await apt_service.get_agent_project_type_by_combination(
+            session, agent.id, ps_project_type.id
+        )
+        is None
+    ):
+        session.add(
+            AgentProjectType(
+                agent_id=agent.id,
+                project_type_id=ps_project_type.id,
+                created_by=superuser.id,
+                updated_by=superuser.id,
+            )
+        )
+
+    step_configure = await _get_agent_step_by_slug(session, agent.id, "configure")
+    if step_configure is None:
+        step_configure = AgentStep(
+            agent_id=agent.id,
+            order=1,
+            slug="configure",
+            runner_type=RunnerType.n8n,
+            runner_ref="chatbot_configure",
+            token_cost=0,
+            connection_type=ConnectionType.prestashop,
+        )
+        session.add(step_configure)
+        await session.flush()
+
+    config_inputs: list[tuple[str, InputType, int, str, list | None]] = [
+        (
+            "chatbot_greeting",
+            InputType.textarea,
+            1,
+            "AgentInputs.chatbot_greeting.label",
+            None,
+        ),
+        ("chatbot_title", InputType.text, 2, "AgentInputs.chatbot_title.label", None),
+        (
+            "chatbot_subtitle",
+            InputType.text,
+            3,
+            "AgentInputs.chatbot_subtitle.label",
+            None,
+        ),
+        ("chatbot_color", InputType.text, 4, "AgentInputs.chatbot_color.label", None),
+        (
+            "chatbot_position",
+            InputType.select,
+            5,
+            "AgentInputs.chatbot_position.label",
+            ["right", "left"],
+        ),
+        (
+            "chatbot_teaser_text",
+            InputType.text,
+            6,
+            "AgentInputs.chatbot_teaser_text.label",
+            None,
+        ),
+    ]
+
+    for key, input_type, order, label_key, options in config_inputs:
+        if await _get_agent_input_by_key(session, agent.id, key) is not None:
+            continue
+        session.add(
+            AgentInput(
+                agent_id=agent.id,
+                step_id=None,
+                key=key,
+                input_type=input_type,
+                options=options,
+                options_from_step_slug=None,
+                scope=InputScope.project,
+                order=order,
+                required=False,
+                label_i18n_key=label_key,
+            )
+        )
+
+
 async def seed() -> None:
     """Ensure the bootstrap superuser and base roles exist.
 
@@ -251,6 +347,7 @@ async def seed() -> None:
         await session.flush()
 
         await _seed_blog_writer(session, superuser)
+        await _seed_chatbot_configurator(session, superuser)
 
         try:
             await session.commit()
