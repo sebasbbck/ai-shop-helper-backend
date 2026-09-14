@@ -20,6 +20,8 @@ from ai_shop_helper_backend.models.projects import Project
 from ai_shop_helper_backend.models.users import User
 from ai_shop_helper_backend.schemas.connections import (
     ConnectionAvailability,
+    PrestashopConnectBody,
+    PrestashopStatusResponse,
     WordpressStartBody,
     WordpressStartResponse,
     WordpressStatusResponse,
@@ -200,6 +202,59 @@ async def get_wordpress_status(
         site_url=secrets.get("site_url"),
         username=secrets.get("username"),
     )
+
+
+# ── PrestaShop (Webservice API key) ─────────────────────────────────────────────
+
+
+@router.post(
+    "/prestashop/{project_id}",
+    response_model=PrestashopStatusResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def connect_prestashop(
+    project_id: UUID,
+    body: PrestashopConnectBody,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> PrestashopStatusResponse:
+    await _require_project_member(session, current_user, project_id)
+
+    secrets = conn_service.build_prestashop_secrets(
+        shop_url=body.shop_url,
+        ws_key=body.ws_key,
+    )
+    await conn_service.upsert_connection(
+        session,
+        project_id=project_id,
+        connection_type=ConnectionType.prestashop,
+        secrets=secrets,
+    )
+    await _notify_connection_established(session, project_id, ConnectionType.prestashop)
+    await session.commit()
+    logger.info("PrestaShop connection established for project %s", project_id)
+    return PrestashopStatusResponse(connected=True, shop_url=secrets["shop_url"])
+
+
+@router.get(
+    "/prestashop/{project_id}",
+    response_model=PrestashopStatusResponse,
+)
+async def get_prestashop_status(
+    project_id: UUID,
+    current_user: CurrentUser,
+    session: SessionDep,
+) -> PrestashopStatusResponse:
+    await _require_project_member(session, current_user, project_id)
+
+    connection = await conn_service.get_connection_by_project_and_type(
+        session, project_id, ConnectionType.prestashop
+    )
+    if not connection:
+        return PrestashopStatusResponse(connected=False)
+
+    secrets = decode_secrets(connection)
+    return PrestashopStatusResponse(connected=True, shop_url=secrets.get("shop_url"))
 
 
 # ── Google (GA4 / Search Console) ───────────────────────────────────────────────

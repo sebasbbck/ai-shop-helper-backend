@@ -11,6 +11,7 @@ from ai_shop_helper_backend.models.mixins import TimestampMixin, UUIDMixin
 class ConnectionType(enum.StrEnum):
     wordpress = "wordpress"
     google = "google"
+    prestashop = "prestashop"
 
 
 class Connection(UUIDMixin, TimestampMixin, SQLModel, table=True):
