@@ -20,6 +20,12 @@ class UnreadCountResponse(SQLModel):
     unread_count: int
 
 
+class MarkAllReadResponse(SQLModel):
+    """Schema for the result of bulk-marking notifications as read."""
+
+    marked_count: int
+
+
 class NotificationPreferenceUpdate(SQLModel):
     """Schema for muting/unmuting a notification type."""
 
