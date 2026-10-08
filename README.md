@@ -2,6 +2,19 @@
 
 Backend for the AI Shop Helper application. Built with FastAPI, SQLModel, and PostgreSQL.
 
+> AI Shop Helper was a SaaS platform where online stores connect their website (WordPress) and analytics (Google Analytics 4, Search Console) to run AI agents on their projects. It was developed by a small team during 2026; this repository is republished with the company's permission. The frontend lives in [ai-shop-helper-frontend](https://github.com/sebasbbck/ai-shop-helper-frontend).
+
+## My contribution
+
+I worked on this backend as a developer intern (June–September 2026), shipping features end to end through pull requests reviewed by the tech lead:
+
+- **In-app notification system** — data model, REST API and dispatch logic. Chose REST polling over SSE / PostgreSQL `LISTEN/NOTIFY` because the backend runs as several instances behind a load balancer. Includes role-aware dispatch (e.g. billing alerts only reach org owners), per-type muting enforced server-side, and i18n-ready payloads (the backend sends `type` + `payload`, the frontend renders the text).
+- **Notification triggers** — wired real events into the system: agent run finished/failed, billing (credits granted, failed payment, cancelled subscription), new connections and account activation changes.
+- **Notifications inbox API** — mark as read/unread, mark all as read and filtering by organization.
+- **Google OAuth2** — sign-in with Google (CSRF-protected state, account linking by verified email) and, separately, a per-project Google connection for GA4 and Search Console with encrypted, auto-refreshing tokens. Reworked the original design after code review to split login from data access.
+- **Dynamic connection availability** — endpoint that derives which integrations a project needs from its agents' steps, so the UI doesn't hardcode them.
+- **Testing and CI** — unit tests with mocked sessions and integration tests against a real PostgreSQL (testcontainers), keeping coverage above the 80% CI gate.
+
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/) — package manager
